@@ -11,19 +11,19 @@ const config: Config = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
+  // Step 4: cover services only. Middleware/routes/utils covered in Step 5.
   collectCoverageFrom: [
-    "src/**/*.ts",
-    "!src/**/*.d.ts",
-    "!src/prisma/**",
-    "!src/index.ts",
+    "src/services/**/*.ts",
+    "!src/services/**/__tests__/**",
   ],
   coverageThreshold: {
     global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80,
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
     },
+    // BOM engine is the core pure-logic unit — must be 100%
     "./src/services/bom-engine.ts": {
       branches: 100,
       functions: 100,
@@ -32,7 +32,6 @@ const config: Config = {
     },
   },
   coverageReporters: ["text", "lcov", "html"],
-  setupFilesAfterFramework: [],
 };
 
 export default config;
