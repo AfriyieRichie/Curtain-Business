@@ -1,0 +1,628 @@
+// Curtains ERP — Prisma Schema
+// All monetary values use Decimal to avoid floating point errors.
+// All primary keys are UUID strings.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  ACCOUNTS
+  SALES
+  WORKSHOP
+}
+
+enum Currency {
+  USD
+  GHS
+}
+
+enum RateSource {
+  MANUAL
+  AUTO
+}
+
+enum UnitOfMeasure {
+  METER
+  PIECE
+  ROLL
+  PACK
+  SET
+}
+
+enum MovementType {
+  PURCHASE
+  PRODUCTION_ISSUE
+  MANUAL_ADJUSTMENT
+  DAMAGE
+  RETURN
+}
+
+enum POStatus {
+  DRAFT
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum OrderStatus {
+  CONFIRMED
+  IN_PRODUCTION
+  QUALITY_CHECK
+  READY
+  DELIVERED
+  CANCELLED
+}
+
+enum ProductionStatus {
+  PENDING
+  CUTTING
+  SEWING
+  COMPLETED
+}
+
+enum JobStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  CHEQUE
+  OTHER
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole  @default(SALES)
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  exchangeRates    ExchangeRate[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceivedNotes GoodsReceivedNote[]
+  quotes           Quote[]
+  orders           Order[]
+  jobCards         JobCard[]
+  stockMovements   StockMovement[]
+  payments         Payment[]
+
+  @@map("users")
+}
+
+model ExchangeRate {
+  id            String     @id @default(uuid())
+  rate          Decimal    @db.Decimal(18, 6)
+  effectiveDate DateTime   @map("effective_date")
+  source        RateSource @default(MANUAL)
+  createdById   String     @map("created_by")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([effectiveDate(sort: Desc)])
+  @@map("exchange_rates")
+}
+
+model Supplier {
+  id                String   @id @default(uuid())
+  name              String
+  contactPerson     String?  @map("contact_person")
+  phone             String?
+  email             String?
+  address           String?
+  preferredCurrency Currency @default(USD) @map("preferred_currency")
+  notes             String?
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  materials      Material[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+model MaterialCategory {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+
+  materials Material[]
+
+  @@map("material_categories")
+}
+
+model Material {
+  id                String        @id @default(uuid())
+  code              String        @unique
+  name              String
+  description       String?
+  categoryId        String        @map("category_id")
+  unit              UnitOfMeasure @default(METER)
+  unitCostUsd       Decimal       @default(0) @map("unit_cost_usd") @db.Decimal(18, 6)
+  unitCostGhs       Decimal       @default(0) @map("unit_cost_ghs") @db.Decimal(18, 6)
+  exchangeRateUsed  Decimal       @default(0) @map("exchange_rate_used") @db.Decimal(18, 6)
+  sellingPriceGhs   Decimal       @default(0) @map("selling_price_ghs") @db.Decimal(18, 6)
+  purchaseCurrency  Currency      @default(USD) @map("purchase_currency")
+  currentStock      Decimal       @default(0) @map("current_stock") @db.Decimal(18, 4)
+  minimumStock      Decimal       @default(0) @map("minimum_stock") @db.Decimal(18, 4)
+  reorderQuantity   Decimal       @default(0) @map("reorder_quantity") @db.Decimal(18, 4)
+  supplierId        String?       @map("supplier_id")
+  imageUrl          String?       @map("image_url")
+  isActive          Boolean       @default(true) @map("is_active")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  category          MaterialCategory   @relation(fields: [categoryId], references: [id])
+  supplier          Supplier?          @relation(fields: [supplierId], references: [id])
+  stockMovements    StockMovement[]
+  bomTemplateItems  BOMTemplateItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  goodsReceivedItems GoodsReceivedItem[]
+  jobCardMaterials  JobCardMaterial[]
+  invoiceItems      InvoiceItem[]
+  quoteFabrics      QuoteItem[]        @relation("QuoteFabricMaterial")
+  quoteLinings      QuoteItem[]        @relation("QuoteLiningMaterial")
+  orderFabrics      OrderItem[]        @relation("OrderFabricMaterial")
+  orderLinings      OrderItem[]        @relation("OrderLiningMaterial")
+
+  @@index([code])
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("materials")
+}
+
+model StockMovement {
+  id                     String       @id @default(uuid())
+  materialId             String       @map("material_id")
+  movementType           MovementType @map("movement_type")
+  quantity               Decimal      @db.Decimal(18, 4)
+  unitCostUsd            Decimal      @default(0) @map("unit_cost_usd") @db.Decimal(18, 6)
+  unitCostGhs            Decimal      @default(0) @map("unit_cost_ghs") @db.Decimal(18, 6)
+  exchangeRateAtMovement Decimal      @default(0) @map("exchange_rate_at_movement") @db.Decimal(18, 6)
+  referenceId            String?      @map("reference_id")
+  referenceType          String?      @map("reference_type")
+  notes                  String?
+  createdById            String       @map("created_by")
+  createdAt              DateTime     @default(now()) @map("created_at")
+
+  material  Material @relation(fields: [materialId], references: [id])
+  createdBy User     @relation(fields: [createdById], references: [id])
+
+  @@index([materialId])
+  @@index([movementType])
+  @@index([createdAt(sort: Desc)])
+  @@map("stock_movements")
+}
+
+model PurchaseOrder {
+  id             String   @id @default(uuid())
+  poNumber       String   @unique @map("po_number")
+  supplierId     String   @map("supplier_id")
+  poCurrency     Currency @default(USD) @map("po_currency")
+  status         POStatus @default(DRAFT)
+  orderDate      DateTime @map("order_date")
+  expectedDate   DateTime? @map("expected_date")
+  notes          String?
+  subtotal       Decimal  @default(0) @db.Decimal(18, 4)
+  total          Decimal  @default(0) @db.Decimal(18, 4)
+  createdById    String   @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  supplier  Supplier           @relation(fields: [supplierId], references: [id])
+  createdBy User               @relation(fields: [createdById], references: [id])
+  items     PurchaseOrderItem[]
+  grns      GoodsReceivedNote[]
+
+  @@index([poNumber])
+  @@index([status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id           String  @id @default(uuid())
+  poId         String  @map("po_id")
+  materialId   String  @map("material_id")
+  orderedQty   Decimal @map("ordered_qty") @db.Decimal(18, 4)
+  receivedQty  Decimal @default(0) @map("received_qty") @db.Decimal(18, 4)
+  unitCost     Decimal @map("unit_cost") @db.Decimal(18, 6)
+  lineTotal    Decimal @map("line_total") @db.Decimal(18, 4)
+
+  po             PurchaseOrder       @relation(fields: [poId], references: [id], onDelete: Cascade)
+  material       Material            @relation(fields: [materialId], references: [id])
+  receivedItems  GoodsReceivedItem[]
+
+  @@index([poId])
+  @@map("purchase_order_items")
+}
+
+model GoodsReceivedNote {
+  id                  String   @id @default(uuid())
+  grnNumber           String   @unique @map("grn_number")
+  poId                String   @map("po_id")
+  receivedDate        DateTime @map("received_date")
+  exchangeRateAtReceipt Decimal @map("exchange_rate_at_receipt") @db.Decimal(18, 6)
+  notes               String?
+  createdById         String   @map("created_by")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  po        PurchaseOrder       @relation(fields: [poId], references: [id])
+  createdBy User                @relation(fields: [createdById], references: [id])
+  items     GoodsReceivedItem[]
+
+  @@index([grnNumber])
+  @@map("goods_received_notes")
+}
+
+model GoodsReceivedItem {
+  id           String  @id @default(uuid())
+  grnId        String  @map("grn_id")
+  poItemId     String  @map("po_item_id")
+  materialId   String  @map("material_id")
+  receivedQty  Decimal @map("received_qty") @db.Decimal(18, 4)
+  unitCostUsd  Decimal @map("unit_cost_usd") @db.Decimal(18, 6)
+  unitCostGhs  Decimal @map("unit_cost_ghs") @db.Decimal(18, 6)
+
+  grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  poItem   PurchaseOrderItem @relation(fields: [poItemId], references: [id])
+  material Material          @relation(fields: [materialId], references: [id])
+
+  @@index([grnId])
+  @@map("goods_received_items")
+}
+
+model CurtainType {
+  id          String  @id @default(uuid())
+  name        String  @unique
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  bomTemplates BOMTemplate[]
+  quoteItems   QuoteItem[]
+  orderItems   OrderItem[]
+
+  @@map("curtain_types")
+}
+
+model BOMTemplate {
+  id                   String  @id @default(uuid())
+  curtainTypeId        String  @map("curtain_type_id")
+  name                 String
+  description          String?
+  defaultFullnessRatio Decimal @default(2.5) @map("default_fullness_ratio") @db.Decimal(6, 2)
+  isActive             Boolean @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  curtainType CurtainType       @relation(fields: [curtainTypeId], references: [id])
+  items       BOMTemplateItem[]
+  quoteItems  QuoteItem[]
+  orderItems  OrderItem[]
+
+  @@map("bom_templates")
+}
+
+model BOMTemplateItem {
+  id              String @id @default(uuid())
+  bomTemplateId   String @map("bom_template_id")
+  materialId      String @map("material_id")
+  quantityFormula String @map("quantity_formula")
+  notes           String?
+  sortOrder       Int    @default(0) @map("sort_order")
+
+  bomTemplate BOMTemplate @relation(fields: [bomTemplateId], references: [id], onDelete: Cascade)
+  material    Material    @relation(fields: [materialId], references: [id])
+
+  @@index([bomTemplateId, sortOrder])
+  @@map("bom_template_items")
+}
+
+model Customer {
+  id             String  @id @default(uuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  notes          String?
+  totalSpentGhs  Decimal @default(0) @map("total_spent_ghs") @db.Decimal(18, 4)
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  windows  CustomerWindow[]
+  quotes   Quote[]
+  orders   Order[]
+  invoices Invoice[]
+
+  @@map("customers")
+}
+
+model CustomerWindow {
+  id         String  @id @default(uuid())
+  customerId String  @map("customer_id")
+  label      String
+  widthCm    Decimal @map("width_cm") @db.Decimal(8, 2)
+  dropCm     Decimal @map("drop_cm") @db.Decimal(8, 2)
+  notes      String?
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@map("customer_windows")
+}
+
+model Quote {
+  id                   String      @id @default(uuid())
+  quoteNumber          String      @unique @map("quote_number")
+  customerId           String      @map("customer_id")
+  status               QuoteStatus @default(DRAFT)
+  validUntil           DateTime?   @map("valid_until")
+  notes                String?
+  exchangeRateSnapshot Decimal     @map("exchange_rate_snapshot") @db.Decimal(18, 6)
+  materialCostUsd      Decimal     @default(0) @map("material_cost_usd") @db.Decimal(18, 4)
+  materialCostGhs      Decimal     @default(0) @map("material_cost_ghs") @db.Decimal(18, 4)
+  subtotalGhs          Decimal     @default(0) @map("subtotal_ghs") @db.Decimal(18, 4)
+  discountAmountGhs    Decimal     @default(0) @map("discount_amount_ghs") @db.Decimal(18, 4)
+  taxRate              Decimal     @default(0) @map("tax_rate") @db.Decimal(6, 4)
+  taxAmountGhs         Decimal     @default(0) @map("tax_amount_ghs") @db.Decimal(18, 4)
+  totalGhs             Decimal     @default(0) @map("total_ghs") @db.Decimal(18, 4)
+  createdById          String      @map("created_by")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  customer  Customer    @relation(fields: [customerId], references: [id])
+  createdBy User        @relation(fields: [createdById], references: [id])
+  items     QuoteItem[]
+  orders    Order[]
+
+  @@index([quoteNumber])
+  @@index([status])
+  @@index([customerId])
+  @@map("quotes")
+}
+
+model QuoteItem {
+  id                  String  @id @default(uuid())
+  quoteId             String  @map("quote_id")
+  curtainTypeId       String  @map("curtain_type_id")
+  bomTemplateId       String  @map("bom_template_id")
+  windowLabel         String  @map("window_label")
+  widthCm             Decimal @map("width_cm") @db.Decimal(8, 2)
+  dropCm              Decimal @map("drop_cm") @db.Decimal(8, 2)
+  fullnessRatio       Decimal @map("fullness_ratio") @db.Decimal(6, 2)
+  fabricMaterialId    String  @map("fabric_material_id")
+  liningMaterialId    String? @map("lining_material_id")
+  description         String?
+  quantity            Decimal @db.Decimal(10, 2)
+  unitPriceGhs        Decimal @map("unit_price_ghs") @db.Decimal(18, 4)
+  lineTotalGhs        Decimal @map("line_total_ghs") @db.Decimal(18, 4)
+  lineCostUsd         Decimal @map("line_cost_usd") @db.Decimal(18, 4)
+  lineCostGhs         Decimal @map("line_cost_ghs") @db.Decimal(18, 4)
+  bomSnapshot         Json    @map("bom_snapshot")
+  exchangeRateAtQuote Decimal @map("exchange_rate_at_quote") @db.Decimal(18, 6)
+
+  quote           Quote       @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  curtainType     CurtainType @relation(fields: [curtainTypeId], references: [id])
+  bomTemplate     BOMTemplate @relation(fields: [bomTemplateId], references: [id])
+  fabricMaterial  Material    @relation("QuoteFabricMaterial", fields: [fabricMaterialId], references: [id])
+  liningMaterial  Material?   @relation("QuoteLiningMaterial", fields: [liningMaterialId], references: [id])
+
+  @@index([quoteId])
+  @@map("quote_items")
+}
+
+model Order {
+  id                   String      @id @default(uuid())
+  orderNumber          String      @unique @map("order_number")
+  quoteId              String?     @map("quote_id")
+  customerId           String      @map("customer_id")
+  status               OrderStatus @default(CONFIRMED)
+  exchangeRateSnapshot Decimal     @map("exchange_rate_snapshot") @db.Decimal(18, 6)
+  materialCostUsd      Decimal     @default(0) @map("material_cost_usd") @db.Decimal(18, 4)
+  materialCostGhs      Decimal     @default(0) @map("material_cost_ghs") @db.Decimal(18, 4)
+  subtotalGhs          Decimal     @default(0) @map("subtotal_ghs") @db.Decimal(18, 4)
+  discountAmountGhs    Decimal     @default(0) @map("discount_amount_ghs") @db.Decimal(18, 4)
+  taxAmountGhs         Decimal     @default(0) @map("tax_amount_ghs") @db.Decimal(18, 4)
+  totalGhs             Decimal     @default(0) @map("total_ghs") @db.Decimal(18, 4)
+  depositAmountGhs     Decimal     @default(0) @map("deposit_amount_ghs") @db.Decimal(18, 4)
+  balanceDueGhs        Decimal     @default(0) @map("balance_due_ghs") @db.Decimal(18, 4)
+  deliveryDate         DateTime?   @map("delivery_date")
+  notes                String?
+  createdById          String      @map("created_by")
+  createdAt            DateTime    @default(now()) @map("created_at")
+  updatedAt            DateTime    @updatedAt @map("updated_at")
+
+  quote     Quote?      @relation(fields: [quoteId], references: [id])
+  customer  Customer    @relation(fields: [customerId], references: [id])
+  createdBy User        @relation(fields: [createdById], references: [id])
+  items     OrderItem[]
+  jobCards  JobCard[]
+  invoices  Invoice[]
+
+  @@index([orderNumber])
+  @@index([status])
+  @@index([customerId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String           @id @default(uuid())
+  orderId             String           @map("order_id")
+  curtainTypeId       String           @map("curtain_type_id")
+  bomTemplateId       String           @map("bom_template_id")
+  windowLabel         String           @map("window_label")
+  widthCm             Decimal          @map("width_cm") @db.Decimal(8, 2)
+  dropCm              Decimal          @map("drop_cm") @db.Decimal(8, 2)
+  fullnessRatio       Decimal          @map("fullness_ratio") @db.Decimal(6, 2)
+  fabricMaterialId    String           @map("fabric_material_id")
+  liningMaterialId    String?          @map("lining_material_id")
+  description         String?
+  quantity            Decimal          @db.Decimal(10, 2)
+  unitPriceGhs        Decimal          @map("unit_price_ghs") @db.Decimal(18, 4)
+  lineTotalGhs        Decimal          @map("line_total_ghs") @db.Decimal(18, 4)
+  lineCostUsd         Decimal          @map("line_cost_usd") @db.Decimal(18, 4)
+  lineCostGhs         Decimal          @map("line_cost_ghs") @db.Decimal(18, 4)
+  bomSnapshot         Json             @map("bom_snapshot")
+  productionStatus    ProductionStatus @default(PENDING) @map("production_status")
+
+  order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  curtainType    CurtainType @relation(fields: [curtainTypeId], references: [id])
+  bomTemplate    BOMTemplate @relation(fields: [bomTemplateId], references: [id])
+  fabricMaterial Material    @relation("OrderFabricMaterial", fields: [fabricMaterialId], references: [id])
+  liningMaterial Material?   @relation("OrderLiningMaterial", fields: [liningMaterialId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model JobCard {
+  id           String    @id @default(uuid())
+  orderId      String    @map("order_id")
+  jobNumber    String    @unique @map("job_number")
+  assignedToId String?   @map("assigned_to")
+  status       JobStatus @default(PENDING)
+  startedAt    DateTime? @map("started_at")
+  completedAt  DateTime? @map("completed_at")
+  notes        String?
+
+  order      Order           @relation(fields: [orderId], references: [id])
+  assignedTo User?           @relation(fields: [assignedToId], references: [id])
+  materials  JobCardMaterial[]
+
+  @@index([orderId])
+  @@index([status])
+  @@map("job_cards")
+}
+
+model JobCardMaterial {
+  id          String   @id @default(uuid())
+  jobCardId   String   @map("job_card_id")
+  materialId  String   @map("material_id")
+  requiredQty Decimal  @map("required_qty") @db.Decimal(18, 4)
+  issuedQty   Decimal  @default(0) @map("issued_qty") @db.Decimal(18, 4)
+  isIssued    Boolean  @default(false) @map("is_issued")
+  issuedAt    DateTime? @map("issued_at")
+  issuedById  String?  @map("issued_by")
+
+  jobCard  JobCard  @relation(fields: [jobCardId], references: [id], onDelete: Cascade)
+  material Material @relation(fields: [materialId], references: [id])
+
+  @@index([jobCardId])
+  @@map("job_card_materials")
+}
+
+model Invoice {
+  id                   String        @id @default(uuid())
+  invoiceNumber        String        @unique @map("invoice_number")
+  orderId              String        @map("order_id")
+  customerId           String        @map("customer_id")
+  status               InvoiceStatus @default(DRAFT)
+  issueDate            DateTime      @map("issue_date")
+  dueDate              DateTime      @map("due_date")
+  exchangeRateSnapshot Decimal       @map("exchange_rate_snapshot") @db.Decimal(18, 6)
+  materialCostUsd      Decimal       @default(0) @map("material_cost_usd") @db.Decimal(18, 4)
+  subtotalGhs          Decimal       @default(0) @map("subtotal_ghs") @db.Decimal(18, 4)
+  discountAmountGhs    Decimal       @default(0) @map("discount_amount_ghs") @db.Decimal(18, 4)
+  taxRate              Decimal       @default(0) @map("tax_rate") @db.Decimal(6, 4)
+  taxAmountGhs         Decimal       @default(0) @map("tax_amount_ghs") @db.Decimal(18, 4)
+  totalGhs             Decimal       @default(0) @map("total_ghs") @db.Decimal(18, 4)
+  amountPaidGhs        Decimal       @default(0) @map("amount_paid_ghs") @db.Decimal(18, 4)
+  balanceGhs           Decimal       @default(0) @map("balance_ghs") @db.Decimal(18, 4)
+  notes                String?
+  createdAt            DateTime      @default(now()) @map("created_at")
+
+  order    Order         @relation(fields: [orderId], references: [id])
+  customer Customer      @relation(fields: [customerId], references: [id])
+  items    InvoiceItem[]
+  payments Payment[]
+
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([customerId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id           String  @id @default(uuid())
+  invoiceId    String  @map("invoice_id")
+  description  String
+  materialId   String? @map("material_id")
+  materialCode String? @map("material_code")
+  quantity     Decimal @db.Decimal(18, 4)
+  unit         String
+  unitPriceGhs Decimal @map("unit_price_ghs") @db.Decimal(18, 6)
+  lineTotalGhs Decimal @map("line_total_ghs") @db.Decimal(18, 4)
+  unitCostUsd  Decimal @default(0) @map("unit_cost_usd") @db.Decimal(18, 6)
+
+  invoice  Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  material Material? @relation(fields: [materialId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  invoiceId     String        @map("invoice_id")
+  amountGhs     Decimal       @map("amount_ghs") @db.Decimal(18, 4)
+  paymentMethod PaymentMethod @map("payment_method")
+  paymentDate   DateTime      @map("payment_date")
+  reference     String?
+  notes         String?
+  recordedById  String        @map("recorded_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  recordedBy User    @relation(fields: [recordedById], references: [id])
+
+  @@index([invoiceId])
+  @@map("payments")
+}
+
+// Settings stored as key/value for flexibility
+model BusinessSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("business_settings")
+}
