@@ -1,0 +1,264 @@
+import { Request, Response } from "express";
+import Decimal from "decimal.js";
+import { prisma } from "../utils/prisma";
+import { sendSuccess } from "../utils/response";
+
+// ── Dashboard KPIs ────────────────────────────────────────────────────────────
+
+export async function getDashboard(_req: Request, res: Response) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [
+    totalCustomers,
+    activeOrders,
+    monthlyRevenue,
+    lowStockCount,
+    unpaidInvoices,
+    pendingJobCards,
+  ] = await Promise.all([
+    prisma.customer.count(),
+    prisma.order.count({ where: { status: { in: ["PENDING", "CONFIRMED", "IN_PRODUCTION"] } } }),
+    prisma.invoice.aggregate({
+      _sum: { totalGhs: true },
+      where: { createdAt: { gte: startOfMonth }, status: { not: "CANCELLED" } },
+    }),
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*) as count FROM materials
+      WHERE is_active = true AND current_stock <= minimum_stock
+    `,
+    prisma.invoice.aggregate({
+      _sum: { balanceDue: true },
+      where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] } },
+    }),
+    prisma.jobCard.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
+  ]);
+
+  sendSuccess(res, {
+    totalCustomers,
+    activeOrders,
+    monthlyRevenueGhs: monthlyRevenue._sum.totalGhs?.toString() ?? "0",
+    lowStockCount: Number((lowStockCount as [{ count: bigint }])[0].count),
+    totalOutstandingGhs: unpaidInvoices._sum.balanceDue?.toString() ?? "0",
+    pendingJobCards,
+  });
+}
+
+// ── Sales Report ──────────────────────────────────────────────────────────────
+
+export async function getSalesReport(req: Request, res: Response) {
+  const { from, to } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: { not: "CANCELLED" },
+      ...(Object.keys(dateFilter).length && { createdAt: dateFilter }),
+    },
+    include: {
+      customer: { select: { id: true, name: true } },
+      payments: { select: { amountGhs: true, paidAt: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totals = invoices.reduce(
+    (acc, inv) => ({
+      totalGhs: acc.totalGhs.plus(new Decimal(inv.totalGhs.toString())),
+      totalPaid: acc.totalPaid.plus(new Decimal(inv.amountPaid.toString())),
+      totalOutstanding: acc.totalOutstanding.plus(new Decimal(inv.balanceDue.toString())),
+    }),
+    { totalGhs: new Decimal(0), totalPaid: new Decimal(0), totalOutstanding: new Decimal(0) }
+  );
+
+  sendSuccess(res, {
+    totals: {
+      totalGhs: totals.totalGhs.toString(),
+      totalPaid: totals.totalPaid.toString(),
+      totalOutstanding: totals.totalOutstanding.toString(),
+    },
+    invoices,
+  });
+}
+
+// ── Job Profitability ─────────────────────────────────────────────────────────
+
+export async function getProfitabilityReport(req: Request, res: Response) {
+  const { from, to } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const jobCards = await prisma.jobCard.findMany({
+    where: {
+      status: "COMPLETED",
+      ...(Object.keys(dateFilter).length && { completedAt: dateFilter }),
+    },
+    include: {
+      order: { select: { orderNumber: true, totalGhs: true } },
+      materials: {
+        where: { isIssued: true },
+        include: { material: { select: { unitCostGhs: true } } },
+      },
+    },
+  });
+
+  const rows = jobCards.map((jc) => {
+    const materialCost = jc.materials.reduce((sum, m) => {
+      const qty = new Decimal(m.issuedQty?.toString() ?? m.requiredQty.toString());
+      return sum.plus(qty.mul(new Decimal(m.material.unitCostGhs.toString())));
+    }, new Decimal(0));
+
+    const revenue = new Decimal(jc.order.totalGhs.toString());
+    const grossProfit = revenue.minus(materialCost);
+    const margin = revenue.gt(0) ? grossProfit.div(revenue).mul(100).toDecimalPlaces(2) : new Decimal(0);
+
+    return {
+      jobCardId: jc.id,
+      orderNumber: jc.order.orderNumber,
+      revenueGhs: revenue.toString(),
+      materialCostGhs: materialCost.toString(),
+      grossProfitGhs: grossProfit.toString(),
+      marginPct: margin.toString(),
+    };
+  });
+
+  sendSuccess(res, rows);
+}
+
+// ── Inventory Valuation (alias for inventory controller) ──────────────────────
+
+export async function getInventoryReport(_req: Request, res: Response) {
+  const materials = await prisma.material.findMany({
+    where: { isActive: true },
+    include: { category: true },
+    orderBy: { code: "asc" },
+  });
+
+  let totalGhs = new Decimal(0);
+  let totalUsd = new Decimal(0);
+
+  const items = materials.map((m) => {
+    const stock = new Decimal(m.currentStock.toString());
+    const lineGhs = stock.mul(new Decimal(m.unitCostGhs.toString())).toDecimalPlaces(4);
+    const lineUsd = stock.mul(new Decimal(m.unitCostUsd.toString())).toDecimalPlaces(4);
+    totalGhs = totalGhs.plus(lineGhs);
+    totalUsd = totalUsd.plus(lineUsd);
+    return { ...m, lineValueGhs: lineGhs.toString(), lineValueUsd: lineUsd.toString() };
+  });
+
+  sendSuccess(res, {
+    totalGhs: totalGhs.toDecimalPlaces(4).toString(),
+    totalUsd: totalUsd.toDecimalPlaces(4).toString(),
+    items,
+  });
+}
+
+// ── Stock Movements ───────────────────────────────────────────────────────────
+
+export async function getStockMovementsReport(req: Request, res: Response) {
+  const { from, to, materialId, movementType } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const movements = await prisma.stockMovement.findMany({
+    where: {
+      ...(materialId && { materialId }),
+      ...(movementType && { movementType: movementType as never }),
+      ...(Object.keys(dateFilter).length && { createdAt: dateFilter }),
+    },
+    include: {
+      material: { select: { id: true, code: true, name: true, unit: true } },
+      createdBy: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+  });
+
+  sendSuccess(res, movements);
+}
+
+// ── Purchases Report ──────────────────────────────────────────────────────────
+
+export async function getPurchasesReport(req: Request, res: Response) {
+  const { from, to, supplierId } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const pos = await prisma.purchaseOrder.findMany({
+    where: {
+      ...(supplierId && { supplierId }),
+      ...(Object.keys(dateFilter).length && { createdAt: dateFilter }),
+    },
+    include: {
+      supplier: { select: { id: true, name: true } },
+      _count: { select: { items: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const totals = pos.reduce(
+    (acc, po) => ({
+      totalUsd: acc.totalUsd.plus(new Decimal(po.totalUsd.toString())),
+      totalGhs: acc.totalGhs.plus(new Decimal(po.totalGhs.toString())),
+    }),
+    { totalUsd: new Decimal(0), totalGhs: new Decimal(0) }
+  );
+
+  sendSuccess(res, {
+    totals: { totalUsd: totals.totalUsd.toString(), totalGhs: totals.totalGhs.toString() },
+    orders: pos,
+  });
+}
+
+// ── Aged Debtors ──────────────────────────────────────────────────────────────
+
+export async function getAgedDebtors(_req: Request, res: Response) {
+  const now = new Date();
+
+  const invoices = await prisma.invoice.findMany({
+    where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, balanceDue: { gt: 0 } },
+    include: { customer: { select: { id: true, name: true } } },
+    orderBy: { dueDate: "asc" },
+  });
+
+  const buckets = { current: new Decimal(0), days30: new Decimal(0), days60: new Decimal(0), days90plus: new Decimal(0) };
+  const rows = invoices.map((inv) => {
+    const balance = new Decimal(inv.balanceDue.toString());
+    const daysOverdue = inv.dueDate
+      ? Math.max(0, Math.floor((now.getTime() - inv.dueDate.getTime()) / 86400000))
+      : 0;
+
+    if (daysOverdue === 0) buckets.current = buckets.current.plus(balance);
+    else if (daysOverdue <= 30) buckets.days30 = buckets.days30.plus(balance);
+    else if (daysOverdue <= 60) buckets.days60 = buckets.days60.plus(balance);
+    else buckets.days90plus = buckets.days90plus.plus(balance);
+
+    return {
+      invoiceId: inv.id,
+      invoiceNumber: inv.invoiceNumber,
+      customer: inv.customer,
+      dueDate: inv.dueDate,
+      balanceDue: balance.toString(),
+      daysOverdue,
+    };
+  });
+
+  sendSuccess(res, {
+    summary: {
+      current: buckets.current.toString(),
+      "1-30": buckets.days30.toString(),
+      "31-60": buckets.days60.toString(),
+      "90+": buckets.days90plus.toString(),
+    },
+    rows,
+  });
+}

@@ -11,6 +11,7 @@ dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
 import { errorHandler } from "./middleware/errorHandler";
 import { notFound } from "./middleware/notFound";
+import { startCronJobs } from "./services/cron.service";
 
 // Route imports (wired up in later steps)
 import authRouter from "./routes/auth";
@@ -68,6 +69,9 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.info(`Server running on http://localhost:${PORT}`);
+  if (process.env.NODE_ENV !== "test") {
+    startCronJobs();
+  }
 });
 
 export default app;
