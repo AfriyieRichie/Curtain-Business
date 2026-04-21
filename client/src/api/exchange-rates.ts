@@ -10,4 +10,7 @@ export const exchangeRateApi = {
 
   update: (rate: string) =>
     apiClient.post<ApiResponse<ExchangeRate>>("/exchange-rates", { rate }).then((r) => r.data),
+
+  createRate: (rate: string) =>
+    apiClient.post<ApiResponse<ExchangeRate>>("/exchange-rates", { rate }).then((r) => r.data),
 };

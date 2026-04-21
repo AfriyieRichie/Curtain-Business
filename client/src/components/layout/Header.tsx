@@ -1,8 +1,6 @@
 import { LogOut, User } from "lucide-react";
 import { useAuthStore } from "@/store/auth";
 import { authApi } from "@/api/auth";
-import toast from "react-hot-toast";
-
 export default function Header() {
   const { user, clearAuth } = useAuthStore();
 

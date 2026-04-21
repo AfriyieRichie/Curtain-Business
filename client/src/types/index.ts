@@ -7,10 +7,10 @@ export type UnitOfMeasure = "METER" | "PIECE" | "ROLL" | "PACK" | "SET";
 export type MovementType = "PURCHASE" | "PRODUCTION_ISSUE" | "MANUAL_ADJUSTMENT" | "DAMAGE" | "RETURN";
 export type POStatus = "DRAFT" | "SENT" | "PARTIALLY_RECEIVED" | "RECEIVED" | "CANCELLED";
 export type QuoteStatus = "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED" | "EXPIRED";
-export type OrderStatus = "CONFIRMED" | "IN_PRODUCTION" | "QUALITY_CHECK" | "READY" | "DELIVERED" | "CANCELLED";
+export type OrderStatus = "PENDING" | "CONFIRMED" | "IN_PRODUCTION" | "COMPLETED" | "DELIVERED" | "CANCELLED";
 export type ProductionStatus = "PENDING" | "CUTTING" | "SEWING" | "COMPLETED";
 export type JobStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED";
-export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "PARTIALLY_PAID" | "OVERDUE";
+export type InvoiceStatus = "DRAFT" | "SENT" | "PAID" | "PARTIAL" | "OVERDUE" | "CANCELLED";
 export type PaymentMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_MONEY" | "CHEQUE" | "OTHER";
 
 export interface User {
@@ -34,11 +34,11 @@ export interface ExchangeRate {
 export interface Supplier {
   id: string;
   name: string;
-  contactPerson?: string;
+  contactName?: string;
   phone?: string;
   email?: string;
   address?: string;
-  preferredCurrency: Currency;
+  currency: string;
   notes?: string;
   isActive: boolean;
   createdAt: string;
@@ -105,9 +105,10 @@ export interface Customer {
 export interface CustomerWindow {
   id: string;
   customerId: string;
-  label: string;
-  widthCm: string;
-  dropCm: string;
+  roomName: string;
+  widthCm: number;
+  dropCm: number;
+  quantity: number;
   notes?: string;
 }
 
@@ -260,8 +261,8 @@ export interface Invoice {
   taxRate: string;
   taxAmountGhs: string;
   totalGhs: string;
-  amountPaidGhs: string;
-  balanceGhs: string;
+  amountPaid: string;
+  balanceDue: string;
   notes?: string;
   createdAt: string;
   items?: InvoiceItem[];

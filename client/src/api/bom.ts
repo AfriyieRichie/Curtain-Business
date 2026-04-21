@@ -28,5 +28,10 @@ export const bomApi = {
     apiClient.put<ApiResponse<BOMTemplate>>(`/bom/templates/${id}`, data).then((r) => r.data),
 
   calculate: (data: BOMCalculateRequest) =>
-    apiClient.post("/bom/calculate", data).then((r) => r.data),
+    apiClient.post(`/bom/templates/${data.bomTemplateId}/calculate`, {
+      widthCm: data.widthCm,
+      dropCm: data.dropCm,
+      fullnessRatio: data.fullnessRatio,
+      fabricWidthCm: data.fabricWidthCm,
+    }).then((r) => r.data),
 };
