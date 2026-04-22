@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, Users, ChevronRight } from "lucide-react";
+import { Plus, Search, Users, ChevronRight, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { customersApi } from "@/api/customers";
@@ -157,6 +157,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [selected, setSelected] = useState<Customer | null>(null);
+  const [editing, setEditing] = useState<Customer | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["customers", page, search],
@@ -233,14 +234,38 @@ export default function CustomersPage() {
       <Modal open={!!selected} onClose={() => setSelected(null)} title={selected?.name ?? ""} size="lg">
         {selected && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-gray-500">Phone:</span> <span className="font-medium">{selected.phone ?? "—"}</span></div>
-              <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selected.email ?? "—"}</span></div>
-              <div className="col-span-2"><span className="text-gray-500">Address:</span> <span className="font-medium">{selected.address ?? "—"}</span></div>
+            <div className="flex items-start justify-between">
+              <div className="grid grid-cols-2 gap-4 text-sm flex-1">
+                <div><span className="text-gray-500">Phone:</span> <span className="font-medium">{selected.phone ?? "—"}</span></div>
+                <div><span className="text-gray-500">Email:</span> <span className="font-medium">{selected.email ?? "—"}</span></div>
+                <div className="col-span-2"><span className="text-gray-500">Address:</span> <span className="font-medium">{selected.address ?? "—"}</span></div>
+                {selected.notes && <div className="col-span-2"><span className="text-gray-500">Notes:</span> <span className="font-medium">{selected.notes}</span></div>}
+              </div>
+              <button
+                onClick={() => setEditing(selected)}
+                className="ml-4 flex-shrink-0 rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 flex items-center gap-1 border border-gray-200"
+              >
+                <Pencil size={12} /> Edit
+              </button>
             </div>
             <hr className="border-gray-100" />
             <WindowsPanel customer={selected} />
           </div>
+        )}
+      </Modal>
+
+      {/* Edit customer */}
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={`Edit — ${editing?.name ?? ""}`} size="md">
+        {editing && (
+          <CustomerForm
+            customer={editing}
+            onSuccess={() => {
+              setEditing(null);
+              qc.invalidateQueries({ queryKey: ["customers"] });
+              setSelected(null);
+            }}
+            onCancel={() => setEditing(null)}
+          />
         )}
       </Modal>
     </div>
