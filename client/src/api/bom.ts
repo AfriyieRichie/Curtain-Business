@@ -9,9 +9,18 @@ export interface BOMCalculateRequest {
   fabricWidthCm: number;
 }
 
+export interface BOMItemPayload { materialId: string; quantityFormula: string; notes?: string; sortOrder?: number; }
+export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; items: BOMItemPayload[]; }
+
 export const bomApi = {
   getCurtainTypes: () =>
     apiClient.get<ApiResponse<CurtainType[]>>("/bom/curtain-types").then((r) => r.data),
+
+  createCurtainType: (data: { name: string; description?: string; defaultFullnessRatio?: string }) =>
+    apiClient.post<ApiResponse<CurtainType>>("/bom/curtain-types", data).then((r) => r.data),
+
+  updateCurtainType: (id: string, data: { name?: string; description?: string; defaultFullnessRatio?: string; isActive?: boolean }) =>
+    apiClient.patch<ApiResponse<CurtainType>>(`/bom/curtain-types/${id}`, data).then((r) => r.data),
 
   getTemplates: (curtainTypeId?: string) =>
     apiClient.get<ApiResponse<BOMTemplate[]>>("/bom/templates", {
@@ -21,11 +30,14 @@ export const bomApi = {
   getTemplate: (id: string) =>
     apiClient.get<ApiResponse<BOMTemplate>>(`/bom/templates/${id}`).then((r) => r.data),
 
-  createTemplate: (data: Partial<BOMTemplate>) =>
+  createTemplate: (data: BOMTemplatePayload) =>
     apiClient.post<ApiResponse<BOMTemplate>>("/bom/templates", data).then((r) => r.data),
 
-  updateTemplate: (id: string, data: Partial<BOMTemplate>) =>
-    apiClient.put<ApiResponse<BOMTemplate>>(`/bom/templates/${id}`, data).then((r) => r.data),
+  updateTemplate: (id: string, data: Partial<BOMTemplatePayload>) =>
+    apiClient.patch<ApiResponse<BOMTemplate>>(`/bom/templates/${id}`, data).then((r) => r.data),
+
+  deleteTemplate: (id: string) =>
+    apiClient.delete(`/bom/templates/${id}`).then((r) => r.data),
 
   calculate: (data: BOMCalculateRequest) =>
     apiClient.post(`/bom/templates/${data.bomTemplateId}/calculate`, {

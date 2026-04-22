@@ -59,7 +59,7 @@ router.post("/templates",
   body("name").isString().notEmpty(),
   body("items").isArray({ min: 1 }),
   body("items.*.materialId").isUUID(),
-  body("items.*.formula").isString().notEmpty(),
+  body("items.*.quantityFormula").isString().notEmpty(),
   body("items.*.notes").optional().isString(),
   validate,
   ctrl.createTemplate
@@ -71,7 +71,7 @@ router.patch("/templates/:id",
   body("name").optional().isString().notEmpty(),
   body("items").optional().isArray({ min: 1 }),
   body("items.*.materialId").optional().isUUID(),
-  body("items.*.formula").optional().isString().notEmpty(),
+  body("items.*.quantityFormula").optional().isString().notEmpty(),
   validate,
   ctrl.updateTemplate
 );
