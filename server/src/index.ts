@@ -32,7 +32,15 @@ const PORT = process.env.PORT ?? 4000;
 // ── Security & parsing ────────────────────────────────────────────────────────
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CLIENT_URL ?? "http://localhost:5173",
+  origin: (origin, callback) => {
+    const allowed = process.env.CLIENT_URL ?? "http://localhost:5173";
+    // In development, allow any localhost port
+    if (!origin || origin === allowed || (process.env.NODE_ENV !== "production" && /^http:\/\/localhost:\d+$/.test(origin))) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json({ limit: "10mb" }));

@@ -15,7 +15,6 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const { setAuth, token } = useAuthStore();
-  if (token) return <Navigate to="/dashboard" replace />;
 
   const {
     register,
@@ -32,6 +31,8 @@ export default function LoginPage() {
       toast.error("Invalid email or password");
     },
   });
+
+  if (token) return <Navigate to="/dashboard" replace />;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-violet-50 to-gray-100 p-4">
