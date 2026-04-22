@@ -242,6 +242,93 @@ export async function generateQuotePDF(quoteId: string): PDFBuffer {
   return buf;
 }
 
+// ── Purchase Order PDF ────────────────────────────────────────────────────────
+
+export async function generatePurchaseOrderPDF(poId: string): PDFBuffer {
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    where: { id: poId },
+    include: {
+      supplier: true,
+      items: { include: { material: { select: { id: true, code: true, name: true, unit: true } } } },
+      createdBy: { select: { id: true, name: true } },
+    },
+  });
+
+  const settings = await getSettings();
+  const doc = createDoc();
+  const buf = bufferDoc(doc);
+
+  drawHeader(doc, settings);
+
+  doc.fontSize(16).font("Helvetica-Bold").text("PURCHASE ORDER", { align: "right" });
+  doc.fontSize(10).font("Helvetica");
+  doc.text(`PO #: ${po.poNumber}`, 297, doc.y, { width: 247, align: "right" });
+  doc.text(`Date: ${new Date(po.orderDate).toLocaleDateString("en-GB")}`, { align: "right" });
+  if (po.expectedDate) doc.text(`Expected: ${new Date(po.expectedDate).toLocaleDateString("en-GB")}`, { align: "right" });
+  doc.text(`Status: ${po.status}`, { align: "right" });
+
+  doc.moveDown(0.5);
+  doc.fontSize(9).font("Helvetica-Bold").text("SUPPLIER", 50, doc.y);
+  doc.font("Helvetica").fontSize(10);
+  doc.text(po.supplier.name);
+  if (po.supplier.contactPerson) doc.text(po.supplier.contactPerson);
+  if (po.supplier.phone) doc.text(po.supplier.phone);
+  if (po.supplier.email) doc.text(po.supplier.email);
+  if (po.supplier.address) doc.text(po.supplier.address);
+
+  if (po.notes) {
+    doc.moveDown(0.5);
+    doc.fontSize(9).font("Helvetica-Bold").text("NOTES");
+    doc.font("Helvetica").fontSize(10).text(po.notes);
+  }
+
+  doc.moveDown(1);
+  tableHeader(doc, [
+    { label: "Code", x: 55, width: 80 },
+    { label: "Material", x: 135, width: 200 },
+    { label: "Qty", x: 335, width: 55, align: "right" },
+    { label: "Unit", x: 390, width: 40 },
+    { label: "Unit Cost (USD)", x: 430, width: 65, align: "right" },
+    { label: "Total (USD)", x: 495, width: 50, align: "right" },
+  ]);
+
+  doc.fontSize(9).font("Helvetica");
+  po.items.forEach((item, i) => {
+    const rowY = doc.y;
+    if (i % 2 === 1) doc.rect(50, rowY, 495, 16).fill("#f9fafb");
+    doc.fillColor("#111827");
+    doc.text(item.material.code, 55, rowY + 3, { width: 80 });
+    doc.text(item.material.name, 135, rowY + 3, { width: 200 });
+    doc.text(Number(item.orderedQty).toFixed(2), 335, rowY + 3, { width: 55, align: "right" });
+    doc.text(item.material.unit, 390, rowY + 3, { width: 40 });
+    doc.text(Number(item.unitCost).toFixed(4), 430, rowY + 3, { width: 65, align: "right" });
+    doc.text(Number(item.lineTotal).toFixed(2), 495, rowY + 3, { width: 50, align: "right" });
+    doc.y = rowY + 18;
+  });
+
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e5e7eb").lineWidth(0.5).stroke();
+  doc.moveDown(0.5);
+
+  const totY = doc.y;
+  doc.fontSize(10).font("Helvetica").text("Subtotal:", 380, totY, { width: 90, align: "right" });
+  doc.text(`USD ${Number(po.subtotal).toFixed(2)}`, 470, totY, { width: 70, align: "right" });
+  doc.moveDown(0.2);
+  doc.font("Helvetica-Bold").fontSize(12);
+  doc.text("TOTAL:", 380, doc.y, { width: 90, align: "right" });
+  doc.text(`USD ${Number(po.total).toFixed(2)}`, 470, doc.y, { width: 70, align: "right" });
+
+  doc.moveDown(0.5);
+  doc.font("Helvetica").fontSize(8).fillColor("#6b7280");
+  doc.text("All amounts in USD. GHS equivalent calculated at time of goods receipt.", { align: "center" });
+
+  doc.moveDown(1);
+  const footer = settings["business.invoiceFooter"] ?? "Thank you for your business!";
+  doc.fontSize(9).text(footer, { align: "center" });
+
+  doc.end();
+  return buf;
+}
+
 // ── Job Card PDF ──────────────────────────────────────────────────────────────
 
 export async function generateJobCardPDF(jobCardId: string): PDFBuffer {

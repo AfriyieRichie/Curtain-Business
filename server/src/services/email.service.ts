@@ -89,6 +89,41 @@ export async function sendPaymentReceiptEmail(invoiceId: string, amountGhs: stri
   });
 }
 
+// ── Purchase Order delivery ───────────────────────────────────────────────────
+
+export async function sendPurchaseOrderEmail(poId: string, pdfBuffer: Buffer): Promise<void> {
+  const transport = createTransport();
+  if (!transport) return;
+
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    where: { id: poId },
+    include: { supplier: true },
+  });
+
+  if (!po.supplier.email) return;
+
+  const from = await getFromAddress();
+  const businessName = await getBusinessName();
+
+  await transport.sendMail({
+    from,
+    to: po.supplier.email,
+    subject: `Purchase Order ${po.poNumber} from ${businessName}`,
+    html: `
+      <p>Dear ${po.supplier.contactPerson ?? po.supplier.name},</p>
+      <p>Please find attached purchase order <strong>${po.poNumber}</strong>
+         for <strong>${po.items ? po.items.length : ""} item(s)</strong>.</p>
+      ${po.expectedDate ? `<p>Expected delivery: <strong>${new Date(po.expectedDate).toLocaleDateString("en-GB")}</strong></p>` : ""}
+      <p>Please confirm receipt of this order at your earliest convenience.</p>
+      <br/><p>Kind regards,</p>
+      <p>${businessName}</p>
+    `,
+    attachments: [
+      { filename: `${po.poNumber}.pdf`, content: pdfBuffer, contentType: "application/pdf" },
+    ],
+  });
+}
+
 // ── Low-stock alert ───────────────────────────────────────────────────────────
 
 export async function sendLowStockAlert(

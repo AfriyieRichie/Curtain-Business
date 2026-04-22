@@ -78,6 +78,33 @@ router.patch("/purchase-orders/:id",
   ctrl.updatePO
 );
 
+router.patch("/purchase-orders/:id/edit",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  body("items").optional().isArray({ min: 1 }),
+  body("items.*.materialId").optional().isString().notEmpty(),
+  body("items.*.orderedQty").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0.0001 }),
+  body("items.*.unitCostUsd").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("expectedDate").optional({ values: "falsy" }).isISO8601(),
+  body("notes").optional().isString(),
+  validate,
+  ctrl.editPO
+);
+
+router.get("/purchase-orders/:id/pdf",
+  authGuard,
+  param("id").isUUID(),
+  validate,
+  ctrl.downloadPOPDF
+);
+
+router.post("/purchase-orders/:id/email",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  validate,
+  ctrl.emailPO
+);
+
 // ── GRNs ──────────────────────────────────────────────────────────────────────
 
 router.get("/purchase-orders/:id/grns",

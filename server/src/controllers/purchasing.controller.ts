@@ -6,6 +6,8 @@ import { AppError } from "../middleware/errorHandler";
 import { nextDocNumber } from "../services/doc-number.service";
 import { receiveGRN } from "../services/stock.service";
 import { getCurrentRate } from "../services/exchange-rate.service";
+import { generatePurchaseOrderPDF } from "../services/pdf.service";
+import { sendPurchaseOrderEmail } from "../services/email.service";
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
 
@@ -175,6 +177,80 @@ export async function updatePO(req: Request, res: Response) {
     },
   });
   sendSuccess(res, updated, "Purchase order updated.");
+}
+
+// ── PO PDF / Email / Edit ─────────────────────────────────────────────────────
+
+export async function downloadPOPDF(req: Request, res: Response) {
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: req.params.id }, select: { poNumber: true } });
+  const buf = await generatePurchaseOrderPDF(req.params.id);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${po.poNumber}.pdf"`);
+  res.setHeader("Content-Length", buf.length);
+  res.end(buf);
+}
+
+export async function emailPO(req: Request, res: Response) {
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    where: { id: req.params.id },
+    include: { supplier: { select: { email: true, name: true } } },
+  });
+  if (!po.supplier.email) throw new AppError(400, "Supplier has no email address on file.");
+  const pdf = await generatePurchaseOrderPDF(req.params.id);
+  await sendPurchaseOrderEmail(req.params.id, pdf);
+  sendSuccess(res, null, `Purchase order emailed to ${po.supplier.email}.`);
+}
+
+export async function editPO(req: Request, res: Response) {
+  const { expectedDate, notes, items } = req.body as {
+    expectedDate?: string;
+    notes?: string;
+    items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>;
+  };
+
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+  if (po.status !== "DRAFT") throw new AppError(400, "Only DRAFT purchase orders can be edited.");
+
+  if (items && items.length > 0) {
+    const subtotal = items.reduce(
+      (sum, item) => sum.plus(new Decimal(item.unitCostUsd).mul(item.orderedQty)),
+      new Decimal(0)
+    );
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.purchaseOrderItem.deleteMany({ where: { poId: po.id } });
+      return tx.purchaseOrder.update({
+        where: { id: po.id },
+        data: {
+          subtotal,
+          total: subtotal,
+          ...(expectedDate !== undefined && { expectedDate: expectedDate ? new Date(expectedDate) : null }),
+          ...(notes !== undefined && { notes }),
+          items: {
+            create: items.map((item) => ({
+              materialId: item.materialId,
+              orderedQty: new Decimal(item.orderedQty),
+              unitCost: new Decimal(item.unitCostUsd),
+              lineTotal: new Decimal(item.unitCostUsd).mul(item.orderedQty).toDecimalPlaces(4),
+            })),
+          },
+        },
+        include: {
+          supplier: { select: { id: true, name: true } },
+          items: { include: { material: { select: { id: true, code: true, name: true, unit: true } } } },
+        },
+      });
+    });
+    sendSuccess(res, updated, "Purchase order updated.");
+  } else {
+    const updated = await prisma.purchaseOrder.update({
+      where: { id: po.id },
+      data: {
+        ...(expectedDate !== undefined && { expectedDate: expectedDate ? new Date(expectedDate) : null }),
+        ...(notes !== undefined && { notes }),
+      },
+    });
+    sendSuccess(res, updated, "Purchase order updated.");
+  }
 }
 
 // ── GRN (Goods Received Note) ─────────────────────────────────────────────────

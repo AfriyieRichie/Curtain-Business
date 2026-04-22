@@ -1,6 +1,6 @@
 import { apiClient } from "./client";
 
-async function downloadPDF(url: string, filename: string) {
+export async function downloadPDF(url: string, filename: string) {
   const res = await apiClient.get(url, { responseType: "blob" });
   const blob = new Blob([res.data as BlobPart], { type: "application/pdf" });
   const href = URL.createObjectURL(blob);

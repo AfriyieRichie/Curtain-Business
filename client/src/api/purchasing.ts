@@ -1,14 +1,16 @@
 import { apiClient } from "./client";
+import { downloadPDF } from "./pdf";
 import type { ApiResponse, PaginatedResponse, Supplier } from "@/types";
 
 export interface PurchaseOrder {
   id: string;
   poNumber: string;
   supplierId: string;
-  supplier?: Pick<Supplier, "id" | "name">;
+  supplier?: Pick<Supplier, "id" | "name" | "email" | "contactPerson">;
   status: string;
   subtotal: string;
   total: string;
+  orderDate: string;
   expectedDate?: string;
   notes?: string;
   createdAt: string;
@@ -70,6 +72,15 @@ export const purchasingApi = {
 
   updatePO: (id: string, data: { status?: string; expectedDate?: string; notes?: string }) =>
     apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}`, data).then((r) => r.data),
+
+  editPO: (id: string, data: { expectedDate?: string; notes?: string; items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }> }) =>
+    apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}/edit`, data).then((r) => r.data),
+
+  downloadPOPDF: (id: string, poNumber: string) =>
+    downloadPDF(`/purchasing/purchase-orders/${id}/pdf`, `${poNumber}.pdf`),
+
+  emailPO: (id: string) =>
+    apiClient.post<ApiResponse<null>>(`/purchasing/purchase-orders/${id}/email`).then((r) => r.data),
 
   // GRNs
   listGRNs: (poId: string) =>
