@@ -78,6 +78,18 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
     onError: () => toast.error("Email failed"),
   });
 
+  const { mutate: markSent, isPending: isSending } = useMutation({
+    mutationFn: () => invoicesApi.update(invoice.id, { status: "SENT" }),
+    onSuccess: () => {
+      toast.success("Invoice marked as Sent");
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["invoice", invoice.id] });
+    },
+    onError: () => toast.error("Failed to update status"),
+  });
+
+  const canRecordPayment = full.status !== "PAID" && full.status !== "CANCELLED";
+
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-4 text-sm">
@@ -88,6 +100,16 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         <div><span className="text-gray-500">Due Date:</span> <span>{formatDate(full.dueDate)}</span></div>
         <div><span className="text-gray-500">Issued:</span> <span>{formatDate(full.createdAt)}</span></div>
       </div>
+
+      {/* Status actions */}
+      {full.status === "DRAFT" && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 flex items-center justify-between">
+          <p className="text-sm text-amber-800">This invoice is a draft. Mark it as Sent to share with the customer.</p>
+          <button onClick={() => markSent()} disabled={isSending} className="btn-primary text-sm py-1.5 px-3 ml-4 flex-shrink-0">
+            {isSending ? <Spinner size="sm" /> : "Mark as Sent"}
+          </button>
+        </div>
+      )}
 
       {/* Payments list */}
       {payments.length > 0 && (
@@ -114,20 +136,26 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         </div>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button onClick={() => emailInv()} disabled={isEmailing} className="btn-secondary flex items-center gap-1 text-sm">
           {isEmailing ? <Spinner size="sm" /> : <Mail size={14} />} Email to Customer
         </button>
+        {canRecordPayment && !showPayment && (
+          <button className="btn-primary" onClick={() => setShowPayment(true)}>Record Payment</button>
+        )}
       </div>
 
-      {full.status !== "PAID" && full.status !== "DRAFT" && (
-        <div>
-          {showPayment ? (
-            <PaymentForm invoiceId={invoice.id} onSuccess={() => { setShowPayment(false); qc.invalidateQueries({ queryKey: ["invoices"] }); qc.invalidateQueries({ queryKey: ["invoice", invoice.id] }); qc.invalidateQueries({ queryKey: ["payments", invoice.id] }); }} onCancel={() => setShowPayment(false)} />
-          ) : (
-            <button className="btn-primary" onClick={() => setShowPayment(true)}>Record Payment</button>
-          )}
-        </div>
+      {canRecordPayment && showPayment && (
+        <PaymentForm
+          invoiceId={invoice.id}
+          onSuccess={() => {
+            setShowPayment(false);
+            qc.invalidateQueries({ queryKey: ["invoices"] });
+            qc.invalidateQueries({ queryKey: ["invoice", invoice.id] });
+            qc.invalidateQueries({ queryKey: ["payments", invoice.id] });
+          }}
+          onCancel={() => setShowPayment(false)}
+        />
       )}
     </div>
   );
