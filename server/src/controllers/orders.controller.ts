@@ -171,8 +171,9 @@ export async function updateJobCard(req: Request, res: Response) {
 // ── Issue material for a job card ─────────────────────────────────────────────
 
 export async function issueMaterial(req: Request, res: Response) {
+  // req.params.materialId is the JobCardMaterial record id (not Material.id)
   const jcm = await prisma.jobCardMaterial.findFirstOrThrow({
-    where: { jobCardId: req.params.jobCardId, materialId: req.params.materialId },
+    where: { id: req.params.materialId, jobCardId: req.params.jobCardId },
   });
   const movement = await issueJobCardMaterial(jcm.id, req.auth!.userId);
   sendSuccess(res, movement, "Material issued.", 201);
