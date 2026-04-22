@@ -25,7 +25,7 @@ router.post("/categories",
 router.get("/",
   authGuard,
   query("page").optional().isInt({ min: 1 }),
-  query("limit").optional().isInt({ min: 1, max: 100 }),
+  query("limit").optional().isInt({ min: 1, max: 500 }),
   validate,
   ctrl.listMaterials
 );

@@ -26,7 +26,7 @@ export async function createCategory(req: Request, res: Response) {
 
 export async function listMaterials(req: Request, res: Response) {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
-  const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
+  const limit = Math.min(500, parseInt(req.query.limit as string) || 20);
   const { categoryId, search, lowStock } = req.query as Record<string, string>;
 
   const where: object = {
