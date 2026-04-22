@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, ClipboardList } from "lucide-react";
+import { Search, ClipboardList, Receipt } from "lucide-react";
 import toast from "react-hot-toast";
 import { ordersApi } from "@/api/orders";
+import { invoicesApi } from "@/api/invoices";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { FullPageSpinner } from "@/components/ui/Spinner";
@@ -33,7 +34,25 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     onError: () => toast.error("Failed to update status"),
   });
 
-  const jobCards = (full as Order & { jobCards?: Array<{ id: string; jobNumber: string; status: string; notes?: string; materials?: Array<{ id: string; material?: { code: string; name: string }; requiredQty: string; isIssued: boolean }> }> }).jobCards ?? [];
+  const fullOrder = full as Order & {
+    jobCards?: Array<{ id: string; jobNumber: string; status: string; notes?: string; materials?: Array<{ id: string; material?: { code: string; name: string }; requiredQty: string; isIssued: boolean }> }>;
+    invoices?: Array<{ id: string; invoiceNumber: string; status: string }>;
+  };
+  const jobCards = fullOrder.jobCards ?? [];
+  const existingInvoice = fullOrder.invoices?.[0];
+
+  const { mutate: genInvoice, isPending: invoicePending } = useMutation({
+    mutationFn: () => invoicesApi.generate({ orderId: order.id }),
+    onSuccess: (res) => {
+      toast.success(`Invoice ${res.data.invoiceNumber} created`);
+      qc.invalidateQueries({ queryKey: ["order", order.id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to generate invoice";
+      toast.error(msg);
+    },
+  });
 
   return (
     <div className="space-y-5">
@@ -51,6 +70,29 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
         {full.status === "IN_PRODUCTION" && <button className="btn-secondary" onClick={() => updateStatus("COMPLETED")}>Mark Completed</button>}
         {full.status === "COMPLETED" && <button className="btn-secondary" onClick={() => updateStatus("DELIVERED")}>Mark Delivered</button>}
       </div>
+
+      {/* Invoice */}
+      {(full.status === "COMPLETED" || full.status === "DELIVERED") && (
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 flex items-center justify-between">
+          {existingInvoice ? (
+            <>
+              <div className="text-sm">
+                <span className="text-gray-500">Invoice:</span>{" "}
+                <span className="font-mono font-semibold text-violet-700">{existingInvoice.invoiceNumber}</span>
+                <span className="ml-2"><StatusBadge status={existingInvoice.status} type="invoice" /></span>
+              </div>
+              <span className="text-xs text-gray-400">Go to Invoices to record payment</span>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-gray-600">No invoice generated yet</span>
+              <button onClick={() => genInvoice()} disabled={invoicePending} className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5">
+                <Receipt size={14} /> {invoicePending ? "Generating…" : "Generate Invoice"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Job cards */}
       {isLoading ? (
