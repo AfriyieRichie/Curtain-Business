@@ -82,8 +82,9 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
     mutationFn: () => purchasingApi.createPO({ supplierId, items: items.map((i) => ({ ...i, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })), expectedDate: expectedDate || undefined, notes: notes || undefined }),
     onSuccess: () => { toast.success("Purchase order created"); onSuccess(); },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to create PO";
-      toast.error(msg);
+      const data = (e as { response?: { data?: { message?: string; errors?: { field: string; message: string }[] } } })?.response?.data;
+      const detail = data?.errors?.[0] ? ` (${data.errors[0].field}: ${data.errors[0].message})` : "";
+      toast.error((data?.message ?? "Failed to create PO") + detail);
     },
   });
 

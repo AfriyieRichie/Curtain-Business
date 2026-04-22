@@ -28,7 +28,7 @@ router.patch("/:id",
   authGuard, rbacGuard("SALES"),
   param("id").isUUID(),
   body("status").optional().isIn(["PENDING", "CONFIRMED", "IN_PRODUCTION", "COMPLETED", "DELIVERED", "CANCELLED"]),
-  body("depositAmount").optional().isDecimal(),
+  body("depositAmount").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   body("notes").optional().isString(),
   validate,
   ctrl.updateOrder
