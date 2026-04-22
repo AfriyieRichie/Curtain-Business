@@ -32,4 +32,7 @@ export const authApi = {
 
   resetPassword: (id: string, password: string) =>
     apiClient.put<ApiResponse<void>>(`/auth/users/${id}/reset-password`, { newPassword: password }).then((r) => r.data),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiClient.post<ApiResponse<void>>("/auth/change-password", { currentPassword, newPassword }).then((r) => r.data),
 };

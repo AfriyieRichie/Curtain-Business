@@ -114,7 +114,8 @@ model User {
   email         String    @unique
   passwordHash  String    @map("password_hash")
   role          UserRole  @default(SALES)
-  isActive      Boolean   @default(true) @map("is_active")
+  isActive            Boolean   @default(true) @map("is_active")
+  mustChangePassword  Boolean   @default(false) @map("must_change_password")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

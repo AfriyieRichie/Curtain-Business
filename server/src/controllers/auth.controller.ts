@@ -45,7 +45,7 @@ export async function login(req: Request, res: Response) {
 
   sendSuccess(res, {
     accessToken,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, mustChangePassword: user.mustChangePassword },
   });
 }
 
@@ -112,11 +112,31 @@ export async function createUser(req: Request, res: Response) {
 
   const hash = await bcrypt.hash(password, 12);
   const user = await prisma.user.create({
-    data: { name, email: email.toLowerCase(), passwordHash: hash, role: role as never },
-    select: { id: true, name: true, email: true, role: true, isActive: true, createdAt: true },
+    data: { name, email: email.toLowerCase(), passwordHash: hash, role: role as never, mustChangePassword: true },
+    select: { id: true, name: true, email: true, role: true, isActive: true, mustChangePassword: true, createdAt: true },
   });
 
   sendSuccess(res, user, "User created.", 201);
+}
+
+// POST /auth/change-password  (any authenticated user)
+export async function changePassword(req: Request, res: Response) {
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: req.auth!.userId } });
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) throw new AppError(400, "Current password is incorrect.");
+
+  if (newPassword.length < 8) throw new AppError(400, "New password must be at least 8 characters.");
+
+  const hash = await bcrypt.hash(newPassword, 12);
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: hash, mustChangePassword: false },
+  });
+
+  sendSuccess(res, null, "Password changed successfully.");
 }
 
 // PUT /auth/users/:id  (ADMIN only)

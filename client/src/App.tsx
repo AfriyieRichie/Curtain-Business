@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 
 // Auth
 import LoginPage from "@/pages/auth/LoginPage";
+import ChangePasswordPage from "@/pages/auth/ChangePasswordPage";
 
 // Protected pages (lazy-loaded placeholders — implemented in later steps)
 import DashboardPage from "@/pages/dashboard/DashboardPage";
@@ -19,8 +20,9 @@ import ReportsPage from "@/pages/reports/ReportsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const token = useAuthStore((s) => s.token);
+  const { token, user } = useAuthStore();
   if (!token) return <Navigate to="/login" replace />;
+  if (user?.mustChangePassword) return <Navigate to="/change-password" replace />;
   return <>{children}</>;
 }
 
@@ -29,6 +31,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/change-password" element={<ChangePasswordPage />} />
 
         <Route
           path="/"

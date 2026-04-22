@@ -18,6 +18,14 @@ router.post("/logout", ctrl.logout);
 router.post("/refresh", ctrl.refresh);
 router.get("/me", authGuard, ctrl.me);
 
+router.post("/change-password",
+  authGuard,
+  body("currentPassword").notEmpty(),
+  body("newPassword").isLength({ min: 8 }).withMessage("New password must be at least 8 characters"),
+  validate,
+  ctrl.changePassword
+);
+
 router.get("/users", authGuard, rbacGuard("ADMIN"), ctrl.listUsers);
 
 router.post("/users",
