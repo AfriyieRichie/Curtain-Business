@@ -96,6 +96,13 @@ function POItemsEditor({ items, onChange }: { items: ItemRow[]; onChange: (items
           <Plus size={12} /> Add
         </button>
       </div>
+      {/* Column headers */}
+      <div className="grid grid-cols-5 gap-2 px-0.5">
+        <div className="col-span-2 text-xs font-medium text-gray-500">Material</div>
+        <div className="text-xs font-medium text-gray-500">Qty Ordered</div>
+        <div className="text-xs font-medium text-gray-500">Unit Cost (USD)</div>
+        <div />
+      </div>
       <div className="space-y-2">
         {items.map((item, idx) => (
           <div key={idx} className="grid grid-cols-5 gap-2 items-center">
@@ -105,8 +112,8 @@ function POItemsEditor({ items, onChange }: { items: ItemRow[]; onChange: (items
                 {materials?.data.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
               </select>
             </div>
-            <input className="input" type="number" placeholder="Qty" value={item.orderedQty} onChange={(e) => update(idx, "orderedQty", e.target.value)} />
-            <input className="input" type="number" step="0.0001" placeholder="Cost (USD)" value={item.unitCostUsd} onChange={(e) => update(idx, "unitCostUsd", e.target.value)} />
+            <input className="input" type="number" min="0.001" step="0.001" placeholder="e.g. 10" value={item.orderedQty} onChange={(e) => update(idx, "orderedQty", e.target.value)} />
+            <input className="input" type="number" min="0" step="0.0001" placeholder="e.g. 5.50" value={item.unitCostUsd} onChange={(e) => update(idx, "unitCostUsd", e.target.value)} />
             <button type="button" onClick={() => onChange(items.filter((_, i) => i !== idx))} disabled={items.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 text-xs">Remove</button>
           </div>
         ))}
