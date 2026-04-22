@@ -198,7 +198,8 @@ export async function emailPO(req: Request, res: Response) {
   if (!po.supplier.email) throw new AppError(400, "Supplier has no email address on file.");
   const pdf = await generatePurchaseOrderPDF(req.params.id);
   await sendPurchaseOrderEmail(req.params.id, pdf);
-  sendSuccess(res, null, `Purchase order emailed to ${po.supplier.email}.`);
+  await prisma.purchaseOrder.update({ where: { id: req.params.id }, data: { status: "SENT" } });
+  sendSuccess(res, null, `Purchase order sent to ${po.supplier.email}.`);
 }
 
 export async function editPO(req: Request, res: Response) {

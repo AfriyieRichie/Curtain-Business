@@ -226,53 +226,97 @@ function EditPOForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess:
 // ── GRN form ──────────────────────────────────────────────────────────────────
 
 function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: () => void; onCancel: () => void }) {
-  const [items, setItems] = useState((po.items ?? []).map((i) => ({ poItemId: i.id, receivedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCost) })));
+  const [items, setItems] = useState(
+    (po.items ?? []).map((i) => ({
+      poItemId: i.id,
+      receivedQty: Number(i.orderedQty) - Number(i.receivedQty), // default = outstanding qty
+      unitCostUsd: Number(i.unitCost),
+    }))
+  );
+
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createGRN(po.id, { items }),
-    onSuccess: () => { toast.success("GRN created. Stock updated."); onSuccess(); },
+    onSuccess: () => { toast.success("Goods receipt recorded. Stock updated."); onSuccess(); },
     onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "GRN failed";
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to record receipt";
       toast.error(msg);
     },
   });
 
+  const poItems = po.items ?? [];
+
   return (
     <div className="space-y-4">
+      <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700">
+        Enter the quantities <strong>actually received</strong> today. You can receive partially — the PO will stay open for the remainder.
+        Confirm or adjust the unit cost if the supplier charged differently.
+      </div>
+
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-gray-100 text-xs text-gray-500">
+          <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
             <th className="pb-2 text-left">Material</th>
-            <th className="pb-2 text-right">Ordered</th>
-            <th className="pb-2 text-right">Receiving</th>
-            <th className="pb-2 text-right">Unit Cost (USD)</th>
+            <th className="pb-2 text-right">On PO</th>
+            <th className="pb-2 text-right">Previously Received</th>
+            <th className="pb-2 text-right">Receiving Now *</th>
+            <th className="pb-2 text-right">Unit Cost USD *</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
-          {(po.items ?? []).map((poItem, idx) => (
-            <tr key={poItem.id}>
-              <td className="py-2">{poItem.material?.code} — {poItem.material?.name}</td>
-              <td className="py-2 text-right font-mono">{Number(poItem.orderedQty).toFixed(2)}</td>
-              <td className="py-2 text-right">
-                <input type="number" step="0.001" className="input w-24 text-right"
-                  value={items[idx]?.receivedQty ?? ""}
-                  onChange={(e) => setItems((prev) => prev.map((it, i) => i === idx ? { ...it, receivedQty: Number(e.target.value) } : it))}
-                />
-              </td>
-              <td className="py-2 text-right">
-                <input type="number" step="0.0001" className="input w-28 text-right"
-                  value={items[idx]?.unitCostUsd ?? ""}
-                  onChange={(e) => setItems((prev) => prev.map((it, i) => i === idx ? { ...it, unitCostUsd: Number(e.target.value) } : it))}
-                />
-              </td>
-            </tr>
-          ))}
+        <tbody className="divide-y divide-gray-100">
+          {poItems.map((poItem, idx) => {
+            const outstanding = Number(poItem.orderedQty) - Number(poItem.receivedQty);
+            return (
+              <tr key={poItem.id} className="hover:bg-gray-50">
+                <td className="py-3">
+                  <div className="font-medium text-gray-900">{poItem.material?.name}</div>
+                  <div className="text-xs text-gray-400 font-mono">{poItem.material?.code}</div>
+                </td>
+                <td className="py-3 text-right font-mono text-gray-600">
+                  {Number(poItem.orderedQty).toFixed(2)}
+                  <div className="text-xs text-gray-400">{poItem.material?.unit}</div>
+                </td>
+                <td className="py-3 text-right font-mono text-gray-500">
+                  {Number(poItem.receivedQty).toFixed(2)}
+                </td>
+                <td className="py-3 text-right">
+                  <input
+                    type="number" min="0" step="0.001"
+                    className="input w-28 text-right"
+                    value={items[idx]?.receivedQty ?? ""}
+                    onChange={(e) => setItems((prev) => prev.map((it, i) => i === idx ? { ...it, receivedQty: Number(e.target.value) } : it))}
+                  />
+                  {outstanding > 0 && (
+                    <div className="text-xs text-gray-400 mt-0.5">Outstanding: {outstanding.toFixed(2)}</div>
+                  )}
+                </td>
+                <td className="py-3 text-right">
+                  <input
+                    type="number" min="0" step="0.0001"
+                    className="input w-28 text-right"
+                    value={items[idx]?.unitCostUsd ?? ""}
+                    onChange={(e) => setItems((prev) => prev.map((it, i) => i === idx ? { ...it, unitCostUsd: Number(e.target.value) } : it))}
+                  />
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      <div className="flex justify-end gap-3 pt-1">
-        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
-        <button type="button" onClick={() => mutate()} disabled={isPending} className="btn-primary">
-          {isPending ? <Spinner size="sm" /> : "Receive Goods"}
-        </button>
+
+      <div className="flex justify-between items-center pt-1">
+        <span className="text-xs text-gray-400">* Stock levels will be updated immediately on confirmation</span>
+        <div className="flex gap-3">
+          <button type="button" onClick={onCancel} className="btn-secondary">Back</button>
+          <button
+            type="button"
+            onClick={() => mutate()}
+            disabled={isPending || items.every((i) => i.receivedQty <= 0)}
+            className="btn-primary flex items-center gap-2"
+          >
+            {isPending ? <Spinner size="sm" /> : <Truck size={14} />}
+            Confirm Receipt
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -282,16 +326,18 @@ function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: ()
 
 function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; onClose: () => void; onRefresh: () => void }) {
   const qc = useQueryClient();
-  const [showEdit, setShowEdit] = useState(false);
-  const [showGRN, setShowGRN] = useState(false);
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [view, setView] = useState<"detail" | "edit" | "grn" | "cancel">("detail");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["po-detail", listPO.id],
     queryFn: () => purchasingApi.getPO(listPO.id),
   });
+  // Always use fully-loaded PO so items/grns are available
   const po = data?.data ?? listPO;
+  const fullLoaded = !!data?.data;
   const overdue = isOverdue(po);
+  const hasSupplierEmail = !!(po.supplier as { email?: string } | undefined)?.email;
+  const isTerminal = po.status === "RECEIVED" || po.status === "CANCELLED";
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["purchase-orders"] });
@@ -300,6 +346,17 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
     refetch();
   };
 
+  // Send to supplier = email PDF + auto-sets status SENT on server
+  const sendMutation = useMutation({
+    mutationFn: () => purchasingApi.emailPO(po.id),
+    onSuccess: (res) => { toast.success(res.message ?? "PO sent to supplier"); invalidate(); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to send";
+      toast.error(msg);
+    },
+  });
+
+  // Manual "mark sent" fallback — only shown when supplier has no email
   const markSentMutation = useMutation({
     mutationFn: () => purchasingApi.updatePO(po.id, { status: "SENT" }),
     onSuccess: () => { toast.success("PO marked as sent"); invalidate(); },
@@ -308,7 +365,7 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
 
   const cancelMutation = useMutation({
     mutationFn: () => purchasingApi.updatePO(po.id, { status: "CANCELLED" }),
-    onSuccess: () => { toast.success("Purchase order cancelled"); invalidate(); setConfirmCancel(false); },
+    onSuccess: () => { toast.success("Purchase order cancelled"); invalidate(); setView("detail"); },
     onError: () => toast.error("Failed to cancel PO"),
   });
 
@@ -317,58 +374,65 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
     onError: () => toast.error("PDF download failed"),
   });
 
-  const emailMutation = useMutation({
-    mutationFn: () => purchasingApi.emailPO(po.id),
-    onSuccess: (res) => toast.success(res.message ?? "Email sent to supplier"),
-    onError: (e: unknown) => {
-      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to send email";
-      toast.error(msg);
-    },
-  });
-
-  const hasSupplierEmail = !!(po.supplier as { email?: string } | undefined)?.email;
-  const isTerminal = po.status === "RECEIVED" || po.status === "CANCELLED";
-
-  if (showEdit) {
+  // ── Edit sub-view ──────────────────────────────────────────────────────────
+  if (view === "edit") {
     return (
       <EditPOForm
         po={po}
-        onSuccess={() => { setShowEdit(false); invalidate(); }}
-        onCancel={() => setShowEdit(false)}
+        onSuccess={() => { setView("detail"); invalidate(); }}
+        onCancel={() => setView("detail")}
       />
     );
   }
 
-  if (showGRN) {
+  // ── GRN sub-view ───────────────────────────────────────────────────────────
+  if (view === "grn") {
+    if (!fullLoaded) {
+      return <div className="py-8 text-center text-sm text-gray-400"><Spinner size="sm" /> Loading order details…</div>;
+    }
     return (
       <GRNForm
         po={po}
-        onSuccess={() => { setShowGRN(false); invalidate(); qc.invalidateQueries({ queryKey: ["materials"] }); }}
-        onCancel={() => setShowGRN(false)}
+        onSuccess={() => {
+          setView("detail");
+          invalidate();
+          qc.invalidateQueries({ queryKey: ["materials"] });
+        }}
+        onCancel={() => setView("detail")}
       />
     );
   }
 
-  if (confirmCancel) {
+  // ── Cancel confirm sub-view ────────────────────────────────────────────────
+  if (view === "cancel") {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-gray-700">Cancel <span className="font-semibold">{po.poNumber}</span>? This cannot be undone.</p>
+      <div className="space-y-4 py-2">
+        <p className="text-sm text-gray-700">
+          Are you sure you want to cancel <span className="font-semibold">{po.poNumber}</span>? This cannot be undone.
+        </p>
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => setConfirmCancel(false)} className="btn-secondary">Keep PO</button>
-          <button type="button" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
-            {cancelMutation.isPending ? <Spinner size="sm" /> : "Yes, Cancel PO"}
+          <button type="button" onClick={() => setView("detail")} className="btn-secondary">Keep PO</button>
+          <button
+            type="button"
+            onClick={() => cancelMutation.mutate()}
+            disabled={cancelMutation.isPending}
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+          >
+            {cancelMutation.isPending ? <Spinner size="sm" /> : null} Yes, Cancel PO
           </button>
         </div>
       </div>
     );
   }
 
+  // ── Main detail view ───────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
-      {/* Header meta */}
+
+      {/* Meta + actions row */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={po.status} type="po" />
             {overdue && (
               <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
@@ -376,23 +440,22 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
               </span>
             )}
           </div>
-          <div>Supplier: <span className="font-medium text-gray-900">{po.supplier?.name ?? "—"}</span></div>
-          {(po.supplier as { contactPerson?: string } | undefined)?.contactPerson && (
-            <div className="text-xs text-gray-500">{(po.supplier as { contactPerson?: string }).contactPerson}</div>
-          )}
-          <div>Order Date: {formatDate(po.orderDate)}</div>
+          <div>Supplier: <span className="font-medium text-gray-900">{po.supplier?.name ?? "—"}</span>
+            {(po.supplier as { contactPerson?: string } | undefined)?.contactPerson && (
+              <span className="ml-2 text-xs text-gray-400">{(po.supplier as { contactPerson?: string }).contactPerson}</span>
+            )}
+          </div>
+          <div className="text-xs text-gray-500">Order Date: {formatDate(po.orderDate)}</div>
           {po.expectedDate && (
-            <div className={overdue ? "text-red-600 font-medium" : ""}>
+            <div className={`text-xs ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
               Expected: {formatDate(po.expectedDate)}
             </div>
           )}
-          {po.notes && <div className="text-gray-500 italic text-xs">Note: {po.notes}</div>}
+          {po.notes && <div className="text-xs text-gray-400 italic">Note: {po.notes}</div>}
         </div>
 
-        {/* Action buttons */}
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-start">
           <button
-            type="button"
             onClick={() => downloadMutation.mutate()}
             disabled={downloadMutation.isPending}
             className="btn-secondary text-sm flex items-center gap-1.5"
@@ -402,39 +465,45 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
 
           {po.status === "DRAFT" && (
             <>
-              <button type="button" onClick={() => setShowEdit(true)} className="btn-secondary text-sm flex items-center gap-1.5">
+              <button onClick={() => setView("edit")} className="btn-secondary text-sm flex items-center gap-1.5">
                 <Pencil size={14} /> Edit
               </button>
-              <button
-                type="button"
-                onClick={() => markSentMutation.mutate()}
-                disabled={markSentMutation.isPending}
-                className="btn-primary text-sm flex items-center gap-1.5"
-              >
-                {markSentMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Mark as Sent
-              </button>
+              {hasSupplierEmail ? (
+                <button
+                  onClick={() => sendMutation.mutate()}
+                  disabled={sendMutation.isPending}
+                  className="btn-primary text-sm flex items-center gap-1.5"
+                >
+                  {sendMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Send to Supplier
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                    No supplier email — download PDF and send manually
+                  </span>
+                  <button
+                    onClick={() => markSentMutation.mutate()}
+                    disabled={markSentMutation.isPending}
+                    className="btn-secondary text-sm flex items-center gap-1.5"
+                  >
+                    {markSentMutation.isPending ? <Spinner size="sm" /> : null} Mark as Sent
+                  </button>
+                </div>
+              )}
             </>
           )}
 
           {(po.status === "SENT" || po.status === "PARTIALLY_RECEIVED") && (
-            <>
-              <button
-                type="button"
-                onClick={() => hasSupplierEmail ? emailMutation.mutate() : toast.error("Supplier has no email address on file.")}
-                disabled={emailMutation.isPending}
-                title={hasSupplierEmail ? "Email PO to supplier" : "Supplier has no email on file"}
-                className={`text-sm flex items-center gap-1.5 rounded-lg border px-3 py-2 font-medium transition-colors ${hasSupplierEmail ? "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100" : "border-gray-200 text-gray-400 cursor-not-allowed"}`}
-              >
-                {emailMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Send to Supplier
-              </button>
-              <button type="button" onClick={() => setShowGRN(true)} className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 flex items-center gap-1.5">
-                <Truck size={14} /> Receive Goods
-              </button>
-            </>
+            <button
+              onClick={() => { if (!fullLoaded) { toast.error("Loading PO details, please wait…"); return; } setView("grn"); }}
+              className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700 flex items-center gap-1.5"
+            >
+              <Truck size={14} /> Record Goods Receipt
+            </button>
           )}
 
           {!isTerminal && (
-            <button type="button" onClick={() => setConfirmCancel(true)} className="text-sm flex items-center gap-1.5 text-red-500 hover:text-red-700 px-2">
+            <button onClick={() => setView("cancel")} className="text-sm flex items-center gap-1.5 text-red-500 hover:text-red-700 px-2 py-2">
               <X size={14} /> Cancel PO
             </button>
           )}
@@ -443,13 +512,13 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
 
       {/* Line items */}
       <div>
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">Line Items</h4>
+        <h4 className="mb-2 text-sm font-semibold text-gray-700">Line Items</h4>
         {isLoading ? (
-          <div className="py-4 text-center text-sm text-gray-400">Loading…</div>
+          <div className="py-6 text-center text-sm text-gray-400">Loading…</div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 text-xs text-gray-500">
+              <tr className="border-b border-gray-100 text-xs text-gray-500 uppercase tracking-wide">
                 <th className="pb-2 text-left">Code</th>
                 <th className="pb-2 text-left">Material</th>
                 <th className="pb-2 text-right">Ordered</th>
@@ -462,24 +531,27 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
               {(po.items ?? []).map((item: POItem) => {
                 const received = Number(item.receivedQty);
                 const ordered = Number(item.orderedQty);
+                const fullyReceived = received >= ordered;
+                const partiallyReceived = received > 0 && !fullyReceived;
                 return (
-                  <tr key={item.id}>
-                    <td className="py-2 font-mono text-xs text-gray-500">{item.material?.code}</td>
-                    <td className="py-2">{item.material?.name}</td>
-                    <td className="py-2 text-right font-mono">{ordered.toFixed(2)} {item.material?.unit}</td>
-                    <td className={`py-2 text-right font-mono ${received >= ordered ? "text-green-600" : received > 0 ? "text-amber-600" : "text-gray-400"}`}>
+                  <tr key={item.id} className="hover:bg-gray-50">
+                    <td className="py-2.5 font-mono text-xs text-gray-400">{item.material?.code}</td>
+                    <td className="py-2.5 font-medium">{item.material?.name}</td>
+                    <td className="py-2.5 text-right font-mono text-gray-600">{ordered.toFixed(2)} <span className="text-xs text-gray-400">{item.material?.unit}</span></td>
+                    <td className={`py-2.5 text-right font-mono font-medium ${fullyReceived ? "text-green-600" : partiallyReceived ? "text-amber-600" : "text-gray-300"}`}>
                       {received.toFixed(2)}
+                      {fullyReceived && <span className="ml-1 text-xs">✓</span>}
                     </td>
-                    <td className="py-2 text-right font-mono text-gray-600">{fmtUsd(item.unitCost)}</td>
-                    <td className="py-2 text-right font-mono">{fmtUsd(Number(item.unitCost) * ordered)}</td>
+                    <td className="py-2.5 text-right font-mono text-gray-500 text-xs">{fmtUsd(item.unitCost)}</td>
+                    <td className="py-2.5 text-right font-mono">{fmtUsd(Number(item.unitCost) * ordered)}</td>
                   </tr>
                 );
               })}
             </tbody>
             <tfoot>
-              <tr className="border-t border-gray-200">
+              <tr className="border-t-2 border-gray-200">
                 <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-gray-700">Total:</td>
-                <td className="pt-2 text-right font-mono font-semibold">{fmtUsd(po.total)}</td>
+                <td className="pt-2 text-right font-mono font-bold">{fmtUsd(po.total)}</td>
               </tr>
             </tfoot>
           </table>
@@ -489,22 +561,34 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
       {/* GRN history */}
       {(po.grns ?? []).length > 0 && (
         <div>
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Goods Received Notes</h4>
+          <h4 className="mb-2 text-sm font-semibold text-gray-700">Goods Received Notes</h4>
           <div className="space-y-2">
             {(po.grns ?? []).map((grn) => (
-              <div key={grn.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-mono text-xs font-semibold text-violet-700">{grn.grnNumber}</span>
-                  <span className="text-xs text-gray-500">{formatDate(grn.receivedDate)} · Rate: {Number(grn.exchangeRateAtReceipt).toFixed(2)}</span>
+              <div key={grn.id} className="rounded-lg border border-green-100 bg-green-50 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-mono text-xs font-semibold text-green-800">{grn.grnNumber}</span>
+                  <span className="text-xs text-gray-500">
+                    Received {formatDate(grn.receivedDate)} · Rate: GHS {Number(grn.exchangeRateAtReceipt).toFixed(2)}/USD
+                  </span>
                 </div>
-                <div className="space-y-0.5">
-                  {(grn.items ?? []).map((gi) => (
-                    <div key={gi.id} className="flex justify-between text-xs text-gray-600">
-                      <span>{gi.material?.code} — {gi.material?.name}</span>
-                      <span className="font-mono">{Number(gi.receivedQty).toFixed(2)} · {fmtUsd(gi.unitCostUsd)}</span>
-                    </div>
-                  ))}
-                </div>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-gray-500 border-b border-green-100">
+                      <th className="pb-1 text-left font-normal">Material</th>
+                      <th className="pb-1 text-right font-normal">Qty Received</th>
+                      <th className="pb-1 text-right font-normal">Unit Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(grn.items ?? []).map((gi) => (
+                      <tr key={gi.id} className="text-gray-700">
+                        <td className="py-0.5">{gi.material?.code} — {gi.material?.name}</td>
+                        <td className="py-0.5 text-right font-mono">{Number(gi.receivedQty).toFixed(2)}</td>
+                        <td className="py-0.5 text-right font-mono">{fmtUsd(gi.unitCostUsd)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ))}
           </div>
