@@ -3,6 +3,7 @@ import type { ApiResponse, User } from "@/types";
 
 export interface LoginPayload { email: string; password: string; }
 export interface LoginResult { accessToken: string; user: User; }
+export interface CreateUserPayload { name: string; email: string; password: string; role: string; }
 
 export const authApi = {
   login: (payload: LoginPayload) =>
@@ -16,4 +17,19 @@ export const authApi = {
 
   me: () =>
     apiClient.get<ApiResponse<User>>("/auth/me").then((r) => r.data),
+
+  listUsers: () =>
+    apiClient.get<ApiResponse<User[]>>("/auth/users").then((r) => r.data),
+
+  createUser: (data: CreateUserPayload) =>
+    apiClient.post<ApiResponse<User>>("/auth/users", data).then((r) => r.data),
+
+  updateUser: (id: string, data: Partial<{ name: string; role: string }>) =>
+    apiClient.patch<ApiResponse<User>>(`/auth/users/${id}`, data).then((r) => r.data),
+
+  deactivateUser: (id: string) =>
+    apiClient.patch<ApiResponse<User>>(`/auth/users/${id}/deactivate`).then((r) => r.data),
+
+  resetPassword: (id: string, password: string) =>
+    apiClient.patch<ApiResponse<void>>(`/auth/users/${id}/reset-password`, { password }).then((r) => r.data),
 };

@@ -1,16 +1,20 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import { Plus, ShieldOff } from "lucide-react";
 import { settingsApi, type BusinessSetting } from "@/api/settings";
 import { exchangeRateApi } from "@/api/exchange-rates";
+import { authApi, type CreateUserPayload } from "@/api/auth";
 import { useRateStore } from "@/store/rate";
 import { useAuthStore } from "@/store/auth";
 import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 import Spinner from "@/components/ui/Spinner";
+import Modal from "@/components/ui/Modal";
 import { formatDateTime } from "@/lib/formatters";
+import type { User } from "@/types";
 
-type Tab = "general" | "currency" | "account";
+type Tab = "general" | "currency" | "account" | "users";
 
 // ── General settings ──────────────────────────────────────────────────────────
 
@@ -127,22 +131,149 @@ function AccountSettings() {
   );
 }
 
+// ── Users management ─────────────────────────────────────────────────────────
+
+const ROLES = ["ADMIN", "ACCOUNTS", "SALES", "WORKSHOP"];
+
+function CreateUserForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const [form, setForm] = useState<CreateUserPayload>({ name: "", email: "", password: "", role: "SALES" });
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => authApi.createUser(form),
+    onSuccess: () => { toast.success("User created"); onSuccess(); },
+    onError: () => toast.error("Failed to create user"),
+  });
+
+  const set = (k: keyof CreateUserPayload) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((p) => ({ ...p, [k]: e.target.value }));
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="label">Full Name *</label>
+        <input className="input" value={form.name} onChange={set("name")} placeholder="Jane Doe" />
+      </div>
+      <div>
+        <label className="label">Email *</label>
+        <input className="input" type="email" value={form.email} onChange={set("email")} placeholder="jane@example.com" />
+      </div>
+      <div>
+        <label className="label">Password *</label>
+        <input className="input" type="password" value={form.password} onChange={set("password")} placeholder="Min. 8 characters" />
+      </div>
+      <div>
+        <label className="label">Role *</label>
+        <select className="input" value={form.role} onChange={set("role")}>
+          {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+      <div className="flex justify-end gap-3 pt-1">
+        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+        <button
+          type="button"
+          disabled={isPending || !form.name || !form.email || !form.password}
+          onClick={() => mutate()}
+          className="btn-primary"
+        >
+          {isPending ? <Spinner size="sm" /> : "Create User"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function UsersSettings() {
+  const qc = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+  const [showCreate, setShowCreate] = useState(false);
+  const { data, isLoading } = useQuery({ queryKey: ["users"], queryFn: authApi.listUsers });
+  const users: User[] = data?.data ?? [];
+
+  const { mutate: deactivate } = useMutation({
+    mutationFn: (id: string) => authApi.deactivateUser(id),
+    onSuccess: () => { toast.success("User deactivated"); qc.invalidateQueries({ queryKey: ["users"] }); },
+    onError: () => toast.error("Failed"),
+  });
+
+  if (isLoading) return <FullPageSpinner />;
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-semibold text-gray-900">System Users</h2>
+        <button className="btn-primary" onClick={() => setShowCreate(true)}><Plus size={16} /> New User</button>
+      </div>
+      <div className="card p-0 overflow-hidden">
+        <table className="w-full">
+          <thead className="border-b border-gray-200 bg-gray-50">
+            <tr>
+              <th className="table-th">Name</th>
+              <th className="table-th">Email</th>
+              <th className="table-th">Role</th>
+              <th className="table-th">Status</th>
+              <th className="table-th" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {users.map((u) => (
+              <tr key={u.id} className="hover:bg-gray-50">
+                <td className="table-td font-medium">{u.name}</td>
+                <td className="table-td text-gray-500">{u.email}</td>
+                <td className="table-td"><span className="badge-gray">{u.role}</span></td>
+                <td className="table-td">
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive !== false ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                    {u.isActive !== false ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="table-td text-right">
+                  {u.id !== currentUser?.id && u.isActive !== false && (
+                    <button
+                      onClick={() => { if (confirm(`Deactivate ${u.name}?`)) deactivate(u.id); }}
+                      className="text-red-400 hover:text-red-600 p-1 rounded"
+                      title="Deactivate user"
+                    >
+                      <ShieldOff size={14} />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="Create User">
+        <CreateUserForm
+          onSuccess={() => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["users"] }); }}
+          onCancel={() => setShowCreate(false)}
+        />
+      </Modal>
+    </>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
+
+const TAB_LABELS: Record<Tab, string> = { general: "General", currency: "Currency", account: "Account", users: "Users" };
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("general");
+  const currentUser = useAuthStore((s) => s.user);
   const { data, isLoading } = useQuery({ queryKey: ["settings"], queryFn: settingsApi.list });
   const settings = data?.data ?? [];
+
+  const tabs: Tab[] = currentUser?.role === "ADMIN"
+    ? ["general", "currency", "account", "users"]
+    : ["general", "currency", "account"];
 
   return (
     <div className="space-y-6">
       <PageHeader title="Settings" subtitle="Configure your business profile and system settings" />
 
       <div className="flex gap-1 border-b border-gray-200">
-        {(["general", "currency", "account"] as Tab[]).map((key) => (
+        {tabs.map((key) => (
           <button key={key} onClick={() => setTab(key)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 capitalize transition-colors ${tab === key ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-            {key}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
+            {TAB_LABELS[key]}
           </button>
         ))}
       </div>
@@ -152,6 +283,7 @@ export default function SettingsPage() {
           {tab === "general" && <GeneralSettings settings={settings} />}
           {tab === "currency" && <CurrencySettings />}
           {tab === "account" && <AccountSettings />}
+          {tab === "users" && currentUser?.role === "ADMIN" && <UsersSettings />}
         </>
       )}
     </div>
