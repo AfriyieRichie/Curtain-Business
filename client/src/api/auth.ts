@@ -25,7 +25,7 @@ export const authApi = {
     apiClient.post<ApiResponse<User>>("/auth/users", data).then((r) => r.data),
 
   updateUser: (id: string, data: Partial<{ name: string; role: string }>) =>
-    apiClient.patch<ApiResponse<User>>(`/auth/users/${id}`, data).then((r) => r.data),
+    apiClient.put<ApiResponse<User>>(`/auth/users/${id}`, data).then((r) => r.data),
 
   deactivateUser: (id: string) =>
     apiClient.put<ApiResponse<User>>(`/auth/users/${id}/deactivate`).then((r) => r.data),

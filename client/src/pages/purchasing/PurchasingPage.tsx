@@ -81,7 +81,10 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createPO({ supplierId, items: items.map((i) => ({ ...i, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })), expectedDate: expectedDate || undefined, notes: notes || undefined }),
     onSuccess: () => { toast.success("Purchase order created"); onSuccess(); },
-    onError: () => toast.error("Failed to create PO"),
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to create PO";
+      toast.error(msg);
+    },
   });
 
   const updateItem = (idx: number, key: string, value: string | number) => {
@@ -137,7 +140,7 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
 
       <div className="flex justify-end gap-3 pt-1">
         <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
-        <button type="button" disabled={!supplierId || isPending} onClick={() => mutate()} className="btn-primary">
+        <button type="button" disabled={!supplierId || items.some((i) => !i.materialId) || isPending} onClick={() => mutate()} className="btn-primary">
           {isPending ? <Spinner size="sm" /> : "Create PO"}
         </button>
       </div>
@@ -152,7 +155,10 @@ function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: ()
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createGRN(po.id, { items }),
     onSuccess: () => { toast.success("GRN created. Stock updated."); onSuccess(); },
-    onError: () => toast.error("GRN failed"),
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "GRN failed";
+      toast.error(msg);
+    },
   });
 
   return (
