@@ -13,7 +13,7 @@ router.get("/suppliers", authGuard, ctrl.listSuppliers);
 
 router.get("/suppliers/:id",
   authGuard,
-  param("id").isUUID(),
+  param("id").isString().notEmpty(),
   validate,
   ctrl.getSupplier
 );
@@ -31,7 +31,7 @@ router.post("/suppliers",
 
 router.patch("/suppliers/:id",
   authGuard, rbacGuard("ACCOUNTS"),
-  param("id").isUUID(),
+  param("id").isString().notEmpty(),
   body("name").optional().isString().notEmpty(),
   body("email").optional().isEmail(),
   validate,
@@ -42,7 +42,7 @@ router.patch("/suppliers/:id",
 
 router.get("/purchase-orders",
   authGuard,
-  query("supplierId").optional().isUUID(),
+  query("supplierId").optional().isString().notEmpty(),
   query("status").optional().isString(),
   validate,
   ctrl.listPOs
@@ -57,9 +57,9 @@ router.get("/purchase-orders/:id",
 
 router.post("/purchase-orders",
   authGuard, rbacGuard("ACCOUNTS"),
-  body("supplierId").isUUID(),
+  body("supplierId").isString().notEmpty(),
   body("items").isArray({ min: 1 }),
-  body("items.*.materialId").isUUID(),
+  body("items.*.materialId").isString().notEmpty(),
   body("items.*.orderedQty").customSanitizer((v) => Number(v)).isFloat({ min: 0.0001 }).withMessage("Qty must be greater than 0"),
   body("items.*.unitCostUsd").customSanitizer((v) => Number(v)).isFloat({ min: 0 }).withMessage("Cost must be 0 or more"),
   body("expectedDate").optional({ values: "falsy" }).isISO8601(),
