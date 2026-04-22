@@ -27,10 +27,10 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [calculating, setCalculating] = useState<number | null>(null);
 
-  const { data: customers } = useQuery({ queryKey: ["customers-mini"], queryFn: () => customersApi.list({ limit: 200 }) });
-  const { data: typesData } = useQuery({ queryKey: ["curtain-types"], queryFn: bomApi.getCurtainTypes });
-  const { data: templatesData } = useQuery({ queryKey: ["bom-templates"], queryFn: () => bomApi.getTemplates() });
-  const { data: materialsData } = useQuery({ queryKey: ["materials-all"], queryFn: () => inventoryApi.getMaterials({ page: 1, limit: 500 }) });
+  const { data: customers } = useQuery({ queryKey: ["customers-mini"], queryFn: () => customersApi.list({ limit: 200 }), staleTime: 5 * 60_000 });
+  const { data: typesData } = useQuery({ queryKey: ["curtain-types"], queryFn: bomApi.getCurtainTypes, staleTime: 5 * 60_000 });
+  const { data: templatesData } = useQuery({ queryKey: ["bom-templates"], queryFn: () => bomApi.getTemplates(), staleTime: 5 * 60_000 });
+  const { data: materialsData, isLoading: materialsLoading } = useQuery({ queryKey: ["materials-all"], queryFn: () => inventoryApi.getMaterials({ page: 1, limit: 500 }), staleTime: 5 * 60_000 });
 
   const curtainTypes = typesData?.data ?? [];
   const templates = templatesData?.data ?? [];
@@ -122,8 +122,8 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
                 </div>
                 <div>
                   <label className="label">Fabric Material *</label>
-                  <select className="input" value={line.fabricMaterialId} onChange={(e) => updateLine(line._key, { fabricMaterialId: e.target.value })}>
-                    <option value="">Select fabric…</option>
+                  <select className="input" value={line.fabricMaterialId} onChange={(e) => updateLine(line._key, { fabricMaterialId: e.target.value })} disabled={materialsLoading}>
+                    <option value="">{materialsLoading ? "Loading…" : materials.length === 0 ? "No materials — add in Inventory first" : "Select fabric…"}</option>
                     {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
                   </select>
                 </div>
