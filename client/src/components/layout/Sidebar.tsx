@@ -8,23 +8,31 @@ import { useQuery } from "@tanstack/react-query";
 import { exchangeRateApi } from "@/api/exchange-rates";
 import { formatDate } from "@/lib/formatters";
 import { useRateStore } from "@/store/rate";
+import { useAuthStore, type UserRole } from "@/store/auth";
 import { useEffect } from "react";
 
-const navItems = [
-  { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { to: "/inventory", icon: Package, label: "Inventory" },
-  { to: "/bom", icon: FileText, label: "BOM Templates" },
-  { to: "/customers", icon: Users, label: "Customers" },
-  { to: "/quotes", icon: ShoppingCart, label: "Quotes" },
-  { to: "/orders", icon: ClipboardList, label: "Orders" },
-  { to: "/production", icon: Wrench, label: "Production" },
-  { to: "/invoices", icon: Receipt, label: "Invoices" },
-  { to: "/purchasing", icon: Truck, label: "Purchasing" },
-  { to: "/reports", icon: BarChart3, label: "Reports" },
-  { to: "/settings", icon: Settings, label: "Settings" },
+type NavItem = { to: string; icon: React.ElementType; label: string; roles: UserRole[] };
+
+const ALL: UserRole[] = ["ADMIN", "ACCOUNTS", "SALES", "WORKSHOP"];
+const ADMIN_ACCOUNTS: UserRole[] = ["ADMIN", "ACCOUNTS"];
+const ADMIN_SALES: UserRole[] = ["ADMIN", "ACCOUNTS", "SALES"];
+
+const navItems: NavItem[] = [
+  { to: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",     roles: ALL },
+  { to: "/inventory",   icon: Package,         label: "Inventory",     roles: ["ADMIN", "ACCOUNTS", "WORKSHOP"] },
+  { to: "/bom",         icon: FileText,        label: "BOM Templates", roles: ["ADMIN"] },
+  { to: "/customers",   icon: Users,           label: "Customers",     roles: ADMIN_SALES },
+  { to: "/quotes",      icon: ShoppingCart,    label: "Quotes",        roles: ADMIN_SALES },
+  { to: "/orders",      icon: ClipboardList,   label: "Orders",        roles: ALL },
+  { to: "/production",  icon: Wrench,          label: "Production",    roles: ["ADMIN", "WORKSHOP"] },
+  { to: "/invoices",    icon: Receipt,         label: "Invoices",      roles: ADMIN_ACCOUNTS },
+  { to: "/purchasing",  icon: Truck,           label: "Purchasing",    roles: ADMIN_ACCOUNTS },
+  { to: "/reports",     icon: BarChart3,       label: "Reports",       roles: ADMIN_ACCOUNTS },
+  { to: "/settings",    icon: Settings,        label: "Settings",      roles: ["ADMIN"] },
 ];
 
 export default function Sidebar() {
+  const role = useAuthStore((s) => s.user?.role);
   const setRate = useRateStore((s) => s.setRate);
 
   const { data } = useQuery({
@@ -52,7 +60,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {navItems.filter((item) => !role || item.roles.includes(role)).map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -82,13 +90,15 @@ export default function Sidebar() {
               <p className="text-xs text-gray-400">Updated {formatDate(updatedAt)}</p>
             )}
           </div>
-          <NavLink
-            to="/settings/currency"
-            className="rounded-md p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
-            title="Update exchange rate"
-          >
-            <Pencil size={14} />
-          </NavLink>
+          {role === "ADMIN" && (
+            <NavLink
+              to="/settings/currency"
+              className="rounded-md p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+              title="Update exchange rate"
+            >
+              <Pencil size={14} />
+            </NavLink>
+          )}
         </div>
       </div>
     </aside>
