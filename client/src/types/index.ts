@@ -34,11 +34,11 @@ export interface ExchangeRate {
 export interface Supplier {
   id: string;
   name: string;
-  contactName?: string;
+  contactPerson?: string;
   phone?: string;
   email?: string;
   address?: string;
-  currency: string;
+  preferredCurrency: string;
   notes?: string;
   isActive: boolean;
   createdAt: string;

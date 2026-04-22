@@ -4,6 +4,9 @@ import type { ApiResponse, PaginatedResponse, Quote } from "@/types";
 export interface CreateQuoteItem {
   curtainTypeId: string;
   bomTemplateId: string;
+  windowLabel: string;
+  fabricMaterialId: string;
+  liningMaterialId?: string;
   description?: string;
   widthCm: number;
   dropCm: number;

@@ -39,7 +39,7 @@ function SupplierForm({ supplier, onSuccess, onCancel }: { supplier?: Supplier; 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="label">Contact Person</label>
-          <input {...register("contactName")} className="input" />
+          <input {...register("contactPerson")} className="input" />
         </div>
         <div>
           <label className="label">Phone</label>
@@ -51,7 +51,7 @@ function SupplierForm({ supplier, onSuccess, onCancel }: { supplier?: Supplier; 
         </div>
         <div>
           <label className="label">Currency</label>
-          <select {...register("currency")} className="input">
+          <select {...register("preferredCurrency")} className="input">
             {["USD", "EUR", "GBP", "GHS"].map((c) => <option key={c}>{c}</option>)}
           </select>
         </div>
@@ -148,7 +148,7 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
 // ── GRN form ──────────────────────────────────────────────────────────────────
 
 function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: () => void; onCancel: () => void }) {
-  const [items, setItems] = useState((po.items ?? []).map((i) => ({ poItemId: i.id, receivedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })));
+  const [items, setItems] = useState((po.items ?? []).map((i) => ({ poItemId: i.id, receivedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCost) })));
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createGRN(po.id, { items }),
     onSuccess: () => { toast.success("GRN created. Stock updated."); onSuccess(); },
@@ -256,9 +256,9 @@ export default function PurchasingPage() {
                 {suppliers.map((s) => (
                   <tr key={s.id} className="hover:bg-gray-50">
                     <td className="table-td font-medium">{s.name}</td>
-                    <td className="table-td text-gray-500">{(s as { contactName?: string }).contactName ?? "—"}</td>
+                    <td className="table-td text-gray-500">{s.contactPerson ?? "—"}</td>
                     <td className="table-td text-gray-500">{s.phone ?? "—"}</td>
-                    <td className="table-td">{(s as { currency?: string }).currency ?? "USD"}</td>
+                    <td className="table-td">{s.preferredCurrency ?? "USD"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -293,7 +293,7 @@ export default function PurchasingPage() {
                       <td className="table-td font-medium">{po.supplier?.name ?? "—"}</td>
                       <td className="table-td"><StatusBadge status={po.status} type="po" /></td>
                       <td className="table-td text-gray-500">{formatDate(po.expectedDate)}</td>
-                      <td className="table-td text-right font-mono">{fmtGhs(po.totalGhs)}</td>
+                      <td className="table-td text-right font-mono">{fmtGhs(po.total)}</td>
                       <td className="table-td">
                         {!["RECEIVED", "CANCELLED"].includes(po.status) && (
                           <button onClick={() => setGrnPO(po)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50">Receive</button>

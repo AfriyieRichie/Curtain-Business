@@ -20,7 +20,7 @@ function SalesReport() {
     queryKey: ["report-sales", from, to],
     queryFn: () => reportsApi.getSales({ from: from || undefined, to: to || undefined }),
   });
-  const report = data?.data as { totals: { totalGhs: string; totalPaid: string; totalOutstanding: string }; invoices: Array<{ id: string; invoiceNumber: string; customer?: { name: string }; totalGhs: string; amountPaid: string; balanceDue: string; createdAt: string }> } | undefined;
+  const report = data?.data as { totals: { totalGhs: string; totalPaid: string; totalOutstanding: string }; invoices: Array<{ id: string; invoiceNumber: string; customer?: { name: string }; totalGhs: string; amountPaidGhs: string; balanceGhs: string; createdAt: string }> } | undefined;
 
   return (
     <div className="space-y-4">
@@ -57,8 +57,8 @@ function SalesReport() {
                     <td className="table-td font-mono text-xs font-semibold text-violet-700">{inv.invoiceNumber}</td>
                     <td className="table-td">{inv.customer?.name ?? "—"}</td>
                     <td className="table-td text-right font-mono">{fmtGhs(inv.totalGhs)}</td>
-                    <td className="table-td text-right font-mono text-green-600">{fmtGhs(inv.amountPaid)}</td>
-                    <td className="table-td text-right font-mono text-red-600">{fmtGhs(inv.balanceDue)}</td>
+                    <td className="table-td text-right font-mono text-green-600">{fmtGhs(inv.amountPaidGhs)}</td>
+                    <td className="table-td text-right font-mono text-red-600">{fmtGhs(inv.balanceGhs)}</td>
                     <td className="table-td text-gray-500">{formatDate(inv.createdAt)}</td>
                   </tr>
                 ))}
@@ -157,7 +157,7 @@ function InventoryReport() {
 
 function AgedDebtorsReport() {
   const { data, isLoading } = useQuery({ queryKey: ["report-aged"], queryFn: reportsApi.getAgedDebtors });
-  const report = data?.data as { summary: Record<string, string>; rows: Array<{ invoiceId: string; invoiceNumber: string; customer?: { name: string }; dueDate?: string; balanceDue: string; daysOverdue: number }> } | undefined;
+  const report = data?.data as { summary: Record<string, string>; rows: Array<{ invoiceId: string; invoiceNumber: string; customer?: { name: string }; dueDate?: string; balanceGhs: string; daysOverdue: number }> } | undefined;
 
   return isLoading ? <FullPageSpinner /> : report ? (
     <div className="space-y-4">
@@ -187,7 +187,7 @@ function AgedDebtorsReport() {
                 <td className="table-td">{r.customer?.name ?? "—"}</td>
                 <td className="table-td text-gray-500">{formatDate(r.dueDate)}</td>
                 <td className={`table-td text-right font-medium ${r.daysOverdue > 30 ? "text-red-600" : r.daysOverdue > 0 ? "text-amber-600" : "text-gray-600"}`}>{r.daysOverdue}</td>
-                <td className="table-td text-right font-mono text-red-600">{fmtGhs(r.balanceDue)}</td>
+                <td className="table-td text-right font-mono text-red-600">{fmtGhs(r.balanceGhs)}</td>
               </tr>
             ))}
           </tbody>

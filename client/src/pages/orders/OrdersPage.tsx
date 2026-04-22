@@ -33,7 +33,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
     onError: () => toast.error("Failed to update status"),
   });
 
-  const jobCards = (full as Order & { jobCards?: Array<{ id: string; status: string; materials?: Array<{ id: string; material?: { code: string; name: string }; requiredQty: string; isIssued: boolean }> }> }).jobCards ?? [];
+  const jobCards = (full as Order & { jobCards?: Array<{ id: string; jobNumber: string; status: string; notes?: string; materials?: Array<{ id: string; material?: { code: string; name: string }; requiredQty: string; isIssued: boolean }> }> }).jobCards ?? [];
 
   return (
     <div className="space-y-5">
@@ -62,7 +62,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
             {jobCards.map((jc) => (
               <div key={jc.id} className="rounded-lg border border-gray-200 p-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-mono text-gray-500">{jc.id.slice(-8).toUpperCase()}</span>
+                  <span className="text-xs font-mono font-semibold text-violet-700">{jc.jobNumber || jc.id.slice(-8).toUpperCase()}</span>
                   <StatusBadge status={jc.status} type="job" />
                 </div>
                 {jc.materials && jc.materials.length > 0 && (

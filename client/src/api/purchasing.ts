@@ -7,8 +7,8 @@ export interface PurchaseOrder {
   supplierId: string;
   supplier?: Pick<Supplier, "id" | "name">;
   status: string;
-  totalUsd: string;
-  totalGhs: string;
+  subtotal: string;
+  total: string;
   expectedDate?: string;
   notes?: string;
   createdAt: string;
@@ -22,7 +22,7 @@ export interface POItem {
   material?: { id: string; code: string; name: string; unit: string };
   orderedQty: string;
   receivedQty: string;
-  unitCostUsd: string;
+  unitCost: string;
 }
 
 export interface GRN {

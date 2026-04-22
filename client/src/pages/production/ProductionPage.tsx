@@ -19,7 +19,9 @@ interface JobCardMaterial {
 interface JobCard {
   id: string;
   orderId: string;
+  jobNumber: string;
   status: string;
+  notes?: string;
   order?: { orderNumber: string; customer?: { name: string } };
   materials?: JobCardMaterial[];
 }
@@ -90,7 +92,10 @@ function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: st
         jobCards.map((jc) => (
           <div key={jc.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-mono text-gray-500">{jc.id.slice(-6).toUpperCase()}</span>
+              <div>
+                <span className="text-xs font-mono font-semibold text-violet-700">{jc.jobNumber || jc.id.slice(-8).toUpperCase()}</span>
+                {jc.notes && <p className="text-xs text-gray-500 mt-0.5">{jc.notes}</p>}
+              </div>
               <StatusBadge status={jc.status} type="job" />
             </div>
 

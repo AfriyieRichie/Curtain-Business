@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { quotesApi, type CreateQuoteItem } from "@/api/quotes";
 import { customersApi } from "@/api/customers";
 import { bomApi } from "@/api/bom";
+import { inventoryApi } from "@/api/inventory";
 import Spinner from "@/components/ui/Spinner";
 
 interface Props { onSuccess: () => void; onCancel: () => void; }
@@ -16,7 +17,7 @@ interface LineItem extends CreateQuoteItem {
 
 let keyCounter = 0;
 function newLine(): LineItem {
-  return { _key: ++keyCounter, curtainTypeId: "", bomTemplateId: "", widthCm: 200, dropCm: 230, quantity: 1, fullnessRatio: 2.5, fabricWidthCm: 280 };
+  return { _key: ++keyCounter, curtainTypeId: "", bomTemplateId: "", windowLabel: "", fabricMaterialId: "", widthCm: 200, dropCm: 230, quantity: 1, fullnessRatio: 2.5, fabricWidthCm: 280 };
 }
 
 export default function QuoteForm({ onSuccess, onCancel }: Props) {
@@ -29,9 +30,11 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
   const { data: customers } = useQuery({ queryKey: ["customers-mini"], queryFn: () => customersApi.list({ limit: 200 }) });
   const { data: typesData } = useQuery({ queryKey: ["curtain-types"], queryFn: bomApi.getCurtainTypes });
   const { data: templatesData } = useQuery({ queryKey: ["bom-templates"], queryFn: () => bomApi.getTemplates() });
+  const { data: materialsData } = useQuery({ queryKey: ["materials-all"], queryFn: () => inventoryApi.getMaterials({ page: 1, limit: 500 }) });
 
   const curtainTypes = typesData?.data ?? [];
   const templates = templatesData?.data ?? [];
+  const materials = materialsData?.data ?? [];
 
   const { mutate: submit, isPending } = useMutation({
     mutationFn: () => quotesApi.create({
@@ -74,7 +77,7 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
   }
 
   const templatesForType = (typeId: string) => templates.filter((t) => t.curtainTypeId === typeId);
-  const canSubmit = customerId && lines.every((l) => l.curtainTypeId && l.bomTemplateId);
+  const canSubmit = customerId && lines.every((l) => l.curtainTypeId && l.bomTemplateId && l.windowLabel && l.fabricMaterialId);
 
   return (
     <div className="space-y-5">
@@ -114,14 +117,25 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Curtain Type</label>
+                  <label className="label">Window Label *</label>
+                  <input className="input" placeholder="e.g. Living Room Left" value={line.windowLabel} onChange={(e) => updateLine(line._key, { windowLabel: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Fabric Material *</label>
+                  <select className="input" value={line.fabricMaterialId} onChange={(e) => updateLine(line._key, { fabricMaterialId: e.target.value })}>
+                    <option value="">Select fabric…</option>
+                    {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Curtain Type *</label>
                   <select className="input" value={line.curtainTypeId} onChange={(e) => updateLine(line._key, { curtainTypeId: e.target.value, bomTemplateId: "" })}>
                     <option value="">Select type…</option>
                     {curtainTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="label">BOM Template</label>
+                  <label className="label">BOM Template *</label>
                   <select className="input" value={line.bomTemplateId} onChange={(e) => updateLine(line._key, { bomTemplateId: e.target.value })} disabled={!line.curtainTypeId}>
                     <option value="">Select template…</option>
                     {templatesForType(line.curtainTypeId).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
