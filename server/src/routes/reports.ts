@@ -8,6 +8,7 @@ import * as ctrl from "../controllers/reports.controller";
 const router = Router();
 
 router.get("/dashboard", authGuard, ctrl.getDashboard);
+router.get("/charts", authGuard, ctrl.getChartData);
 
 router.get("/sales",
   authGuard, rbacGuard("ACCOUNTS"),

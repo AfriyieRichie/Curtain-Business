@@ -20,11 +20,11 @@ export async function getSetting(req: Request, res: Response) {
 }
 
 export async function upsertSetting(req: Request, res: Response) {
-  const { value, description } = req.body as { value: string; description?: string };
+  const { value } = req.body as { value: string };
   const setting = await prisma.businessSetting.upsert({
     where: { key: req.params.key },
-    update: { value, ...(description !== undefined && { description }) },
-    create: { key: req.params.key, value, description },
+    update: { value },
+    create: { key: req.params.key, value },
   });
   sendSuccess(res, setting, "Setting saved.");
 }
@@ -56,7 +56,7 @@ export async function uploadBusinessLogo(req: Request, res: Response) {
   const setting = await prisma.businessSetting.upsert({
     where: { key: "business.logoUrl" },
     update: { value: logoUrl },
-    create: { key: "business.logoUrl", value: logoUrl, description: "Business logo URL" },
+    create: { key: "business.logoUrl", value: logoUrl },
   });
   sendSuccess(res, setting, "Logo uploaded.");
 }

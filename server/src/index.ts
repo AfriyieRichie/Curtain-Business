@@ -9,6 +9,14 @@ import path from "path";
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
 
+// ── Env validation ────────────────────────────────────────────────────────────
+const REQUIRED_ENV = ["DATABASE_URL", "JWT_SECRET"];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+  console.error(`[STARTUP] Missing required environment variables: ${missing.join(", ")}`);
+  process.exit(1);
+}
+
 import { errorHandler } from "./middleware/errorHandler";
 import { notFound } from "./middleware/notFound";
 import { startCronJobs } from "./services/cron.service";

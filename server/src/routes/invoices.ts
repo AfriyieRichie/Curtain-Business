@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { authGuard } from "../middleware/authGuard";
 import { rbacGuard } from "../middleware/rbacGuard";
 import * as ctrl from "../controllers/invoices.controller";
+import * as pdfCtrl from "../controllers/pdf.controller";
 
 const router = Router();
 
@@ -62,5 +63,8 @@ router.post("/:id/payments",
   validate,
   ctrl.recordPayment
 );
+
+router.get("/:id/pdf", authGuard, param("id").isUUID(), validate, pdfCtrl.invoicePDF);
+router.post("/:id/email", authGuard, rbacGuard("ACCOUNTS"), param("id").isUUID(), validate, ctrl.emailInvoice);
 
 export default router;

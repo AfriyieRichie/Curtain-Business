@@ -69,6 +69,9 @@ export async function createQuote(req: Request, res: Response) {
     items: Array<{
       curtainTypeId: string;
       bomTemplateId: string;
+      windowLabel: string;
+      fabricMaterialId: string;
+      liningMaterialId?: string;
       description?: string;
       widthCm: number;
       dropCm: number;
@@ -100,18 +103,22 @@ export async function createQuote(req: Request, res: Response) {
 
         const bomItems = template.items.map((ti) => ({
           materialId: ti.materialId,
-          formula: ti.formula,
-          notes: ti.notes ?? undefined,
+          materialCode: ti.material.code,
+          description: ti.material.name,
+          quantityFormula: ti.quantityFormula,
+          unit: ti.material.unit,
+          unitCostUsd: ti.material.unitCostUsd,
+          unitCostGhs: ti.material.unitCostGhs,
         }));
 
         const input = {
           widthCm: item.widthCm,
           dropCm: item.dropCm,
-          fullnessRatio: item.fullnessRatio ?? Number(template.curtainType.defaultFullnessRatio),
+          fullnessRatio: item.fullnessRatio ?? Number(template.defaultFullnessRatio),
           fabricWidthCm: item.fabricWidthCm ?? 280,
         };
 
-        const bomResult = calculateBOM(bomItems, input);
+        const bomResult = calculateBOM(bomItems, input, rate);
         const bomSnapshot = serializeBOMSnapshot(bomResult);
 
         // Compute material cost from BOM
@@ -138,15 +145,20 @@ export async function createQuote(req: Request, res: Response) {
         return {
           curtainTypeId: item.curtainTypeId,
           bomTemplateId: item.bomTemplateId,
+          windowLabel: item.windowLabel,
+          fabricMaterialId: item.fabricMaterialId,
+          liningMaterialId: item.liningMaterialId,
           description: item.description,
           widthCm: item.widthCm,
           dropCm: item.dropCm,
           quantity: item.quantity,
           fullnessRatio: input.fullnessRatio,
-          fabricWidthCm: input.fabricWidthCm,
           bomSnapshot,
           unitPriceGhs,
           lineTotalGhs: lineTotal,
+          lineCostUsd: bomResult.totalMaterialCostUsd,
+          lineCostGhs: bomResult.totalMaterialCostGhs,
+          exchangeRateAtQuote: rate,
         };
       })
     );
@@ -155,12 +167,13 @@ export async function createQuote(req: Request, res: Response) {
       data: {
         quoteNumber,
         customerId: body.customerId,
-        exchangeRateAtCreation: rate,
+        exchangeRateSnapshot: rate,
+        subtotalGhs: totalGhs,
         totalGhs,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         notes: body.notes,
         createdById: req.auth!.userId,
-        items: { create: itemsData },
+        items: { create: itemsData as never },
       },
       include: {
         customer: { select: { id: true, name: true } },
@@ -210,7 +223,9 @@ export async function convertToOrder(req: Request, res: Response) {
   }
 
   const orderNumber = await nextDocNumber("ORD");
-  const rate = new Decimal(quote.exchangeRateAtCreation.toString());
+  const rate = new Decimal(quote.exchangeRateSnapshot.toString());
+  const deposit = depositAmount ? new Decimal(depositAmount) : new Decimal(0);
+  const balance = new Decimal(quote.totalGhs.toString()).minus(deposit);
 
   const order = await prisma.$transaction(async (tx) => {
     const newOrder = await tx.order.create({
@@ -218,25 +233,31 @@ export async function convertToOrder(req: Request, res: Response) {
         orderNumber,
         customerId: quote.customerId,
         quoteId: quote.id,
-        exchangeRateAtCreation: rate,
+        exchangeRateSnapshot: rate,
+        subtotalGhs: quote.totalGhs,
         totalGhs: quote.totalGhs,
-        depositAmount: depositAmount ? new Decimal(depositAmount) : new Decimal(0),
+        depositAmountGhs: deposit,
+        balanceDueGhs: balance.gt(0) ? balance : new Decimal(0),
         notes: quote.notes,
         createdById: req.auth!.userId,
         items: {
           create: quote.items.map((qi) => ({
             curtainTypeId: qi.curtainTypeId,
             bomTemplateId: qi.bomTemplateId,
-            description: qi.description,
+            windowLabel: qi.windowLabel,
+            fabricMaterialId: qi.fabricMaterialId,
+            liningMaterialId: qi.liningMaterialId ?? undefined,
+            description: qi.description ?? undefined,
             widthCm: qi.widthCm,
             dropCm: qi.dropCm,
             quantity: qi.quantity,
             fullnessRatio: qi.fullnessRatio,
-            fabricWidthCm: qi.fabricWidthCm,
             bomSnapshot: qi.bomSnapshot,
             unitPriceGhs: qi.unitPriceGhs,
             lineTotalGhs: qi.lineTotalGhs,
-          })),
+            lineCostUsd: qi.lineCostUsd,
+            lineCostGhs: qi.lineCostGhs,
+          })) as never,
         },
       },
       include: { customer: { select: { id: true, name: true } }, items: true },

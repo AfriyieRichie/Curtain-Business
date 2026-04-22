@@ -1,6 +1,6 @@
 import { prisma } from "../utils/prisma";
 
-type DocPrefix = "QT" | "ORD" | "INV" | "PO" | "GRN";
+type DocPrefix = "QT" | "ORD" | "INV" | "PO" | "GRN" | "JC";
 
 export async function nextDocNumber(prefix: DocPrefix): Promise<string> {
   const year = new Date().getFullYear();
@@ -16,7 +16,7 @@ export async function nextDocNumber(prefix: DocPrefix): Promise<string> {
     } else {
       seq = 1;
       await tx.businessSetting.create({
-        data: { key, value: "1", description: `Auto-sequence for ${prefix} ${year}` },
+        data: { key, value: "1" },
       });
     }
 

@@ -5,6 +5,7 @@ import { sendSuccess, sendPaginated } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
 import { issueJobCardMaterial } from "../services/stock.service";
 import { deserializeBOMSnapshot } from "../services/bom-engine";
+import { nextDocNumber } from "../services/doc-number.service";
 
 // ── List / Get ────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ export async function getOrder(req: Request, res: Response) {
           assignedTo: { select: { id: true, name: true } },
         },
       },
-      invoice: { select: { id: true, invoiceNumber: true, status: true } },
+      invoices: { select: { id: true, invoiceNumber: true, status: true } },
       createdBy: { select: { id: true, name: true } },
     },
   });
@@ -67,15 +68,15 @@ export async function getOrder(req: Request, res: Response) {
 // ── Update Status / Deposit ───────────────────────────────────────────────────
 
 export async function updateOrder(req: Request, res: Response) {
-  const { status, depositAmount, notes } = req.body as {
-    status?: string; depositAmount?: string; notes?: string;
+  const { status, depositAmountGhs, notes } = req.body as {
+    status?: string; depositAmountGhs?: string; notes?: string;
   };
 
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {
       ...(status && { status: status as never }),
-      ...(depositAmount && { depositAmount: new Decimal(depositAmount) }),
+      ...(depositAmountGhs && { depositAmountGhs: new Decimal(depositAmountGhs) }),
       ...(notes !== undefined && { notes }),
     },
   });
@@ -100,25 +101,27 @@ export async function generateJobCards(req: Request, res: Response) {
     throw new AppError(400, "Cannot generate job cards for a cancelled order.");
   }
 
+  const jobNumbers = await Promise.all(order.items.map(() => nextDocNumber("JC")));
+
   const jobCards = await prisma.$transaction(async (tx) => {
     const created = [];
 
-    for (const item of order.items) {
-      const bom = item.bomSnapshot ? deserializeBOMSnapshot(item.bomSnapshot as string) : null;
+    for (let i = 0; i < order.items.length; i++) {
+      const item = order.items[i];
+      const bom = item.bomSnapshot ? deserializeBOMSnapshot(item.bomSnapshot as Record<string, unknown>) : null;
 
       const jc = await tx.jobCard.create({
         data: {
           orderId: order.id,
-          orderItemId: item.id,
-          curtainTypeId: item.curtainTypeId,
+          jobNumber: jobNumbers[i],
           status: "PENDING",
           assignedToId: assignedToId ?? null,
+          notes: `Window: ${item.windowLabel}`,
           ...(bom && {
             materials: {
               create: bom.lines.map((line) => ({
                 materialId: line.materialId,
                 requiredQty: new Decimal(line.quantity.toString()),
-                notes: line.notes ?? null,
               })),
             },
           }),

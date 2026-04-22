@@ -17,7 +17,7 @@ export async function listCurtainTypes(_req: Request, res: Response) {
 
 export async function getCurtainType(req: Request, res: Response) {
   const type = await prisma.curtainType.findUniqueOrThrow({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     include: {
       bomTemplates: {
         include: { items: { include: { material: { select: { id: true, code: true, name: true, unit: true } } } } },
@@ -29,29 +29,20 @@ export async function getCurtainType(req: Request, res: Response) {
 }
 
 export async function createCurtainType(req: Request, res: Response) {
-  const { name, description, defaultFullnessRatio } = req.body as {
-    name: string; description?: string; defaultFullnessRatio?: string;
-  };
-  const type = await prisma.curtainType.create({
-    data: {
-      name,
-      description,
-      defaultFullnessRatio: defaultFullnessRatio ? new Decimal(defaultFullnessRatio) : new Decimal("2.5"),
-    },
-  });
+  const { name, description } = req.body as { name: string; description?: string };
+  const type = await prisma.curtainType.create({ data: { name, description } });
   sendSuccess(res, type, "Curtain type created.", 201);
 }
 
 export async function updateCurtainType(req: Request, res: Response) {
-  const { name, description, defaultFullnessRatio, isActive } = req.body as {
-    name?: string; description?: string; defaultFullnessRatio?: string; isActive?: boolean;
+  const { name, description, isActive } = req.body as {
+    name?: string; description?: string; isActive?: boolean;
   };
   const type = await prisma.curtainType.update({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     data: {
       ...(name && { name }),
       ...(description !== undefined && { description }),
-      ...(defaultFullnessRatio && { defaultFullnessRatio: new Decimal(defaultFullnessRatio) }),
       ...(isActive !== undefined && { isActive }),
     },
   });
@@ -63,7 +54,7 @@ export async function updateCurtainType(req: Request, res: Response) {
 export async function listTemplates(req: Request, res: Response) {
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const limit = Math.min(100, parseInt(req.query.limit as string) || 20);
-  const { curtainTypeId } = req.query as Record<string, string>;
+  const curtainTypeId = req.query.curtainTypeId as string | undefined;
 
   const where = curtainTypeId ? { curtainTypeId } : {};
 
@@ -86,7 +77,7 @@ export async function listTemplates(req: Request, res: Response) {
 
 export async function getTemplate(req: Request, res: Response) {
   const template = await prisma.bOMTemplate.findUniqueOrThrow({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     include: {
       curtainType: true,
       items: { include: { material: { select: { id: true, code: true, name: true, unit: true, unitCostUsd: true, unitCostGhs: true } } } },
@@ -96,14 +87,15 @@ export async function getTemplate(req: Request, res: Response) {
 }
 
 export async function createTemplate(req: Request, res: Response) {
-  const { curtainTypeId, name, items } = req.body as {
+  const { curtainTypeId, name, defaultFullnessRatio, items } = req.body as {
     curtainTypeId: string;
     name: string;
-    items: Array<{ materialId: string; formula: string; notes?: string }>;
+    defaultFullnessRatio?: string;
+    items: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
   };
 
   for (const item of items) {
-    const result = validateFormula(item.formula);
+    const result = validateFormula(item.quantityFormula);
     if (!result.valid) {
       throw new AppError(422, `Invalid formula for item (materialId: ${item.materialId}): ${result.error}`);
     }
@@ -113,11 +105,13 @@ export async function createTemplate(req: Request, res: Response) {
     data: {
       curtainTypeId,
       name,
+      defaultFullnessRatio: defaultFullnessRatio ? new Decimal(defaultFullnessRatio) : new Decimal("2.5"),
       items: {
-        create: items.map((item) => ({
+        create: items.map((item, idx) => ({
           materialId: item.materialId,
-          formula: item.formula,
+          quantityFormula: item.quantityFormula,
           notes: item.notes,
+          sortOrder: item.sortOrder ?? idx + 1,
         })),
       },
     },
@@ -131,35 +125,40 @@ export async function createTemplate(req: Request, res: Response) {
 }
 
 export async function updateTemplate(req: Request, res: Response) {
-  const { name, items } = req.body as {
+  const { name, defaultFullnessRatio, items } = req.body as {
     name?: string;
-    items?: Array<{ materialId: string; formula: string; notes?: string }>;
+    defaultFullnessRatio?: string;
+    items?: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
   };
 
   if (items) {
     for (const item of items) {
-      const result = validateFormula(item.formula);
+      const result = validateFormula(item.quantityFormula);
       if (!result.valid) {
         throw new AppError(422, `Invalid formula for item (materialId: ${item.materialId}): ${result.error}`);
       }
     }
   }
 
+  const templateId = req.params.id as string;
+
   const template = await prisma.$transaction(async (tx) => {
     if (items) {
-      await tx.bOMTemplateItem.deleteMany({ where: { templateId: req.params.id } });
+      await tx.bOMTemplateItem.deleteMany({ where: { bomTemplateId: templateId } });
     }
 
     return tx.bOMTemplate.update({
-      where: { id: req.params.id },
+      where: { id: templateId },
       data: {
         ...(name && { name }),
+        ...(defaultFullnessRatio && { defaultFullnessRatio: new Decimal(defaultFullnessRatio) }),
         ...(items && {
           items: {
-            create: items.map((item) => ({
+            create: items.map((item, idx) => ({
               materialId: item.materialId,
-              formula: item.formula,
+              quantityFormula: item.quantityFormula,
               notes: item.notes,
+              sortOrder: item.sortOrder ?? idx + 1,
             })),
           },
         }),
@@ -175,7 +174,7 @@ export async function updateTemplate(req: Request, res: Response) {
 }
 
 export async function deleteTemplate(req: Request, res: Response) {
-  await prisma.bOMTemplate.delete({ where: { id: req.params.id } });
+  await prisma.bOMTemplate.delete({ where: { id: req.params.id as string } });
   sendSuccess(res, null, "BOM template deleted.");
 }
 
@@ -187,7 +186,7 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
   };
 
   const template = await prisma.bOMTemplate.findUniqueOrThrow({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     include: {
       curtainType: true,
       items: { include: { material: true } },
@@ -196,18 +195,22 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
 
   const bomItems = template.items.map((item) => ({
     materialId: item.materialId,
-    formula: item.formula,
-    notes: item.notes ?? undefined,
+    materialCode: item.material.code,
+    description: item.material.name,
+    quantityFormula: item.quantityFormula,
+    unit: item.material.unit,
+    unitCostUsd: item.material.unitCostUsd,
+    unitCostGhs: item.material.unitCostGhs,
   }));
 
   const input = {
     widthCm,
     dropCm,
-    fullnessRatio: fullnessRatio ?? Number(template.curtainType.defaultFullnessRatio),
+    fullnessRatio: fullnessRatio ?? Number(template.defaultFullnessRatio),
     fabricWidthCm: fabricWidthCm ?? 280,
   };
 
-  const result = calculateBOM(bomItems, input);
+  const result = calculateBOM(bomItems, input, 1);
 
   const enriched = result.lines.map((line) => {
     const templateItem = template.items.find((i) => i.materialId === line.materialId)!;

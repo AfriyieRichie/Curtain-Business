@@ -124,7 +124,7 @@ export async function updateUser(req: Request, res: Response) {
   const { name, email, role } = req.body as { name?: string; email?: string; role?: string };
 
   const user = await prisma.user.update({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     data: {
       ...(name && { name }),
       ...(email && { email: email.toLowerCase() }),
@@ -138,8 +138,8 @@ export async function updateUser(req: Request, res: Response) {
 
 // PUT /auth/users/:id/deactivate  (ADMIN only)
 export async function deactivateUser(req: Request, res: Response) {
-  if (req.params.id === req.auth!.userId) throw new AppError(400, "Cannot deactivate yourself.");
-  await prisma.user.update({ where: { id: req.params.id }, data: { isActive: false } });
+  if ((req.params.id as string) === req.auth!.userId) throw new AppError(400, "Cannot deactivate yourself.");
+  await prisma.user.update({ where: { id: req.params.id as string }, data: { isActive: false } });
   sendSuccess(res, null, "User deactivated.");
 }
 
@@ -147,6 +147,6 @@ export async function deactivateUser(req: Request, res: Response) {
 export async function resetPassword(req: Request, res: Response) {
   const { newPassword } = req.body as { newPassword: string };
   const hash = await bcrypt.hash(newPassword, 12);
-  await prisma.user.update({ where: { id: req.params.id }, data: { passwordHash: hash } });
+  await prisma.user.update({ where: { id: req.params.id as string }, data: { passwordHash: hash } });
   sendSuccess(res, null, "Password reset.");
 }

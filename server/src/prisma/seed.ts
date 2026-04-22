@@ -69,7 +69,7 @@ async function main() {
   ]);
 
   // ── Exchange Rate ─────────────────────────────────────────────────────────
-  const _exchangeRate = await prisma.exchangeRate.create({
+  await prisma.exchangeRate.create({
     data: {
       rate: new Prisma.Decimal(RATE.toString()),
       effectiveDate: new Date(),
@@ -224,7 +224,7 @@ async function main() {
   });
 
   // Pinch Pleat template
-  const _bomPinchPleat = await prisma.bOMTemplate.create({
+  await prisma.bOMTemplate.create({
     data: {
       curtainTypeId: ctPinchPleat.id,
       name: "Standard Pinch Pleat Curtain",
@@ -243,7 +243,7 @@ async function main() {
   });
 
   // Roman Blind template
-  const _bomRomanBlind = await prisma.bOMTemplate.create({
+  await prisma.bOMTemplate.create({
     data: {
       curtainTypeId: ctRomanBlind.id,
       name: "Standard Roman Blind",
@@ -272,9 +272,9 @@ async function main() {
         address: "15 Cantonments Road, Accra",
         windows: {
           create: [
-            { label: "Living Room Left", widthCm: new Prisma.Decimal("220"), dropCm: new Prisma.Decimal("260") },
-            { label: "Living Room Right", widthCm: new Prisma.Decimal("220"), dropCm: new Prisma.Decimal("260") },
-            { label: "Master Bedroom", widthCm: new Prisma.Decimal("180"), dropCm: new Prisma.Decimal("240") },
+            { roomName: "Living Room Left", widthCm: new Prisma.Decimal("220"), dropCm: new Prisma.Decimal("260") },
+            { roomName: "Living Room Right", widthCm: new Prisma.Decimal("220"), dropCm: new Prisma.Decimal("260") },
+            { roomName: "Master Bedroom", widthCm: new Prisma.Decimal("180"), dropCm: new Prisma.Decimal("240") },
           ],
         },
       },
@@ -287,8 +287,8 @@ async function main() {
         address: "88 East Legon Avenue, Accra",
         windows: {
           create: [
-            { label: "Office Front", widthCm: new Prisma.Decimal("300"), dropCm: new Prisma.Decimal("280") },
-            { label: "Conference Room", widthCm: new Prisma.Decimal("400"), dropCm: new Prisma.Decimal("280") },
+            { roomName: "Office Front", widthCm: new Prisma.Decimal("300"), dropCm: new Prisma.Decimal("280") },
+            { roomName: "Conference Room", widthCm: new Prisma.Decimal("400"), dropCm: new Prisma.Decimal("280") },
           ],
         },
       },
@@ -301,7 +301,7 @@ async function main() {
         address: "7 Labone Close, Accra",
         windows: {
           create: [
-            { label: "Dining Room", widthCm: new Prisma.Decimal("250"), dropCm: new Prisma.Decimal("230") },
+            { roomName: "Dining Room", widthCm: new Prisma.Decimal("250"), dropCm: new Prisma.Decimal("230") },
           ],
         },
       },

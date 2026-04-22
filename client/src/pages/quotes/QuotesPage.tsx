@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Search, ShoppingCart } from "lucide-react";
+import { Plus, Search, ShoppingCart, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { quotesApi } from "@/api/quotes";
+import { pdfApi } from "@/api/pdf";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { FullPageSpinner } from "@/components/ui/Spinner";
@@ -106,6 +107,7 @@ export default function QuotesPage() {
                     <td className="table-td">
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setViewQuote(q)} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">View</button>
+                        <button onClick={() => pdfApi.downloadQuote(q.id).catch(() => toast.error("PDF failed"))} className="rounded px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 flex items-center gap-1"><Download size={12} /> PDF</button>
                         {(q.status === "DRAFT" || q.status === "SENT") && (
                           <button onClick={() => setConvertQuote(q)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50">Convert</button>
                         )}

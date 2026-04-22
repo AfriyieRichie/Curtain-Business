@@ -18,7 +18,7 @@ export async function listSuppliers(req: Request, res: Response) {
     ? {
         OR: [
           { name: { contains: search, mode: "insensitive" as const } },
-          { contactName: { contains: search, mode: "insensitive" as const } },
+          { contactPerson: { contains: search, mode: "insensitive" as const } },
         ],
       }
     : {};
@@ -40,30 +40,30 @@ export async function getSupplier(req: Request, res: Response) {
 }
 
 export async function createSupplier(req: Request, res: Response) {
-  const { name, contactName, email, phone, address, currency, notes } = req.body as {
-    name: string; contactName?: string; email?: string; phone?: string;
-    address?: string; currency?: string; notes?: string;
+  const { name, contactPerson, email, phone, address, preferredCurrency, notes } = req.body as {
+    name: string; contactPerson?: string; email?: string; phone?: string;
+    address?: string; preferredCurrency?: string; notes?: string;
   };
   const supplier = await prisma.supplier.create({
-    data: { name, contactName, email, phone, address, currency: currency ?? "USD", notes },
+    data: { name, contactPerson, email, phone, address, preferredCurrency: (preferredCurrency ?? "USD") as never, notes },
   });
   sendSuccess(res, supplier, "Supplier created.", 201);
 }
 
 export async function updateSupplier(req: Request, res: Response) {
-  const { name, contactName, email, phone, address, currency, notes } = req.body as {
-    name?: string; contactName?: string; email?: string; phone?: string;
-    address?: string; currency?: string; notes?: string;
+  const { name, contactPerson, email, phone, address, preferredCurrency, notes } = req.body as {
+    name?: string; contactPerson?: string; email?: string; phone?: string;
+    address?: string; preferredCurrency?: string; notes?: string;
   };
   const supplier = await prisma.supplier.update({
     where: { id: req.params.id },
     data: {
       ...(name && { name }),
-      ...(contactName !== undefined && { contactName }),
+      ...(contactPerson !== undefined && { contactPerson }),
       ...(email !== undefined && { email }),
       ...(phone !== undefined && { phone }),
       ...(address !== undefined && { address }),
-      ...(currency && { currency }),
+      ...(preferredCurrency && { preferredCurrency: preferredCurrency as never }),
       ...(notes !== undefined && { notes }),
     },
   });
@@ -122,24 +122,19 @@ export async function createPO(req: Request, res: Response) {
     items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>;
   };
 
-  const rateRecord = await getCurrentRate();
-  if (!rateRecord) throw new AppError(400, "No exchange rate configured.");
-  const rate = new Decimal(rateRecord.rate.toString());
-
   const poNumber = await nextDocNumber("PO");
-  const totalUsd = items.reduce(
+  const subtotal = items.reduce(
     (sum, item) => sum.plus(new Decimal(item.unitCostUsd).mul(item.orderedQty)),
     new Decimal(0)
   );
-  const totalGhs = totalUsd.mul(rate).toDecimalPlaces(2);
 
   const po = await prisma.purchaseOrder.create({
     data: {
       poNumber,
       supplierId,
-      exchangeRateAtCreation: rate,
-      totalUsd,
-      totalGhs,
+      orderDate: new Date(),
+      subtotal,
+      total: subtotal,
       expectedDate: expectedDate ? new Date(expectedDate) : undefined,
       notes,
       createdById: req.auth!.userId,
@@ -147,7 +142,8 @@ export async function createPO(req: Request, res: Response) {
         create: items.map((item) => ({
           materialId: item.materialId,
           orderedQty: new Decimal(item.orderedQty),
-          unitCostUsd: new Decimal(item.unitCostUsd),
+          unitCost: new Decimal(item.unitCostUsd),
+          lineTotal: new Decimal(item.unitCostUsd).mul(item.orderedQty).toDecimalPlaces(4),
         })),
       },
     },

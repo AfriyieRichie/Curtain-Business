@@ -19,4 +19,7 @@ export const invoicesApi = {
 
   recordPayment: (id: string, data: { amountGhs: string; method: string; reference?: string; notes?: string; paidAt?: string }) =>
     apiClient.post<ApiResponse<Payment>>(`/invoices/${id}/payments`, data).then((r) => r.data),
+
+  emailInvoice: (id: string) =>
+    apiClient.post<ApiResponse<null>>(`/invoices/${id}/email`).then((r) => r.data),
 };

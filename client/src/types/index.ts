@@ -261,8 +261,8 @@ export interface Invoice {
   taxRate: string;
   taxAmountGhs: string;
   totalGhs: string;
-  amountPaid: string;
-  balanceDue: string;
+  amountPaidGhs: string;
+  balanceGhs: string;
   notes?: string;
   createdAt: string;
   items?: InvoiceItem[];

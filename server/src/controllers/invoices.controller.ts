@@ -4,6 +4,8 @@ import { prisma } from "../utils/prisma";
 import { sendSuccess, sendPaginated } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
 import { nextDocNumber } from "../services/doc-number.service";
+import { generateInvoicePDF } from "../services/pdf.service";
+import { sendInvoiceEmail, sendPaymentReceiptEmail } from "../services/email.service";
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
 
@@ -43,9 +45,8 @@ export async function getInvoice(req: Request, res: Response) {
     include: {
       customer: true,
       order: { select: { id: true, orderNumber: true } },
-      items: { include: { orderItem: { include: { curtainType: true } } } },
-      payments: true,
-      createdBy: { select: { id: true, name: true } },
+      items: true,
+      payments: { orderBy: { paymentDate: "asc" } },
     },
   });
   sendSuccess(res, invoice);
@@ -58,14 +59,16 @@ export async function generateInvoice(req: Request, res: Response) {
 
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { items: true },
+    include: { items: { include: { fabricMaterial: true } }, invoices: true },
   });
 
-  if (order.invoice) {
+  if (order.invoices.length > 0) {
     throw new AppError(400, "An invoice already exists for this order.");
   }
 
   const invoiceNumber = await nextDocNumber("INV");
+  const defaultDueDate = new Date();
+  defaultDueDate.setDate(defaultDueDate.getDate() + 30);
 
   const invoice = await prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.create({
@@ -73,34 +76,39 @@ export async function generateInvoice(req: Request, res: Response) {
         invoiceNumber,
         customerId: order.customerId,
         orderId: order.id,
-        exchangeRateAtCreation: order.exchangeRateAtCreation,
+        issueDate: new Date(),
+        dueDate: dueDate ? new Date(dueDate) : defaultDueDate,
+        exchangeRateSnapshot: order.exchangeRateSnapshot,
         subtotalGhs: order.totalGhs,
         totalGhs: order.totalGhs,
-        amountPaid: order.depositAmount,
-        balanceDue: new Decimal(order.totalGhs.toString()).minus(new Decimal(order.depositAmount.toString())),
-        dueDate: dueDate ? new Date(dueDate) : undefined,
+        amountPaidGhs: order.depositAmountGhs,
+        balanceGhs: new Decimal(order.totalGhs.toString()).minus(new Decimal(order.depositAmountGhs.toString())).gte(0)
+          ? new Decimal(order.totalGhs.toString()).minus(new Decimal(order.depositAmountGhs.toString()))
+          : new Decimal(0),
         notes,
-        createdById: req.auth!.userId,
         items: {
           create: order.items.map((oi) => ({
-            orderItemId: oi.id,
-            description: oi.description ?? `${oi.widthCm}cm × ${oi.dropCm}cm curtain`,
+            description: oi.description ?? `${oi.windowLabel} — ${Number(oi.widthCm).toFixed(0)}cm × ${Number(oi.dropCm).toFixed(0)}cm`,
             quantity: oi.quantity,
+            unit: "SET",
             unitPriceGhs: oi.unitPriceGhs,
             lineTotalGhs: oi.lineTotalGhs,
+            materialId: oi.fabricMaterialId,
+            unitCostUsd: oi.lineCostUsd,
           })),
         },
       },
       include: { items: true, customer: { select: { id: true, name: true } } },
     });
 
-    // If a deposit was already paid, record it as a payment
-    if (new Decimal(order.depositAmount.toString()).gt(0)) {
+    // Record deposit as first payment if applicable
+    if (new Decimal(order.depositAmountGhs.toString()).gt(0)) {
       await tx.payment.create({
         data: {
           invoiceId: inv.id,
-          amountGhs: order.depositAmount,
-          method: "CASH",
+          amountGhs: order.depositAmountGhs,
+          paymentMethod: "CASH",
+          paymentDate: new Date(),
           notes: "Deposit recorded on order",
           recordedById: req.auth!.userId,
         },
@@ -122,7 +130,7 @@ export async function updateInvoice(req: Request, res: Response) {
   const invoice = await prisma.invoice.update({
     where: { id: req.params.id },
     data: {
-      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : null }),
+      ...(dueDate !== undefined && { dueDate: dueDate ? new Date(dueDate) : undefined }),
       ...(notes !== undefined && { notes }),
       ...(status && { status: status as never }),
     },
@@ -148,15 +156,14 @@ export async function recordPayment(req: Request, res: Response) {
       data: {
         invoiceId: invoice.id,
         amountGhs: new Decimal(amountGhs),
-        method: method as never,
+        paymentMethod: method as never,
         reference,
         notes,
-        paidAt: paidAt ? new Date(paidAt) : new Date(),
+        paymentDate: paidAt ? new Date(paidAt) : new Date(),
         recordedById: req.auth!.userId,
       },
     });
 
-    // Recalculate balance
     const allPayments = await tx.payment.findMany({ where: { invoiceId: invoice.id } });
     const totalPaid = allPayments.reduce(
       (sum, pay) => sum.plus(new Decimal(pay.amountGhs.toString())),
@@ -167,19 +174,32 @@ export async function recordPayment(req: Request, res: Response) {
 
     await tx.invoice.update({
       where: { id: invoice.id },
-      data: { amountPaid: totalPaid, balanceDue: balance.gte(0) ? balance : new Decimal(0), status: newStatus as never },
+      data: {
+        amountPaidGhs: totalPaid,
+        balanceGhs: balance.gte(0) ? balance : new Decimal(0),
+        status: newStatus as never,
+      },
     });
 
     return p;
   });
 
+  // Fire-and-forget email — don't block the API response
+  sendPaymentReceiptEmail(invoice.id, amountGhs).catch(() => undefined);
+
   sendSuccess(res, payment, "Payment recorded.", 201);
+}
+
+export async function emailInvoice(req: Request, res: Response) {
+  const pdf = await generateInvoicePDF(req.params.id);
+  await sendInvoiceEmail(req.params.id, pdf);
+  sendSuccess(res, null, "Invoice emailed.");
 }
 
 export async function listPayments(req: Request, res: Response) {
   const payments = await prisma.payment.findMany({
     where: { invoiceId: req.params.id },
-    orderBy: { paidAt: "desc" },
+    orderBy: { paymentDate: "desc" },
     include: { recordedBy: { select: { id: true, name: true } } },
   });
   sendSuccess(res, payments);

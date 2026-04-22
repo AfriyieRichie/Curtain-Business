@@ -28,7 +28,7 @@ export async function getDashboard(_req: Request, res: Response) {
       WHERE is_active = true AND current_stock <= minimum_stock
     `,
     prisma.invoice.aggregate({
-      _sum: { balanceDue: true },
+      _sum: { balanceGhs: true },
       where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] } },
     }),
     prisma.jobCard.count({ where: { status: { in: ["PENDING", "IN_PROGRESS"] } } }),
@@ -39,7 +39,7 @@ export async function getDashboard(_req: Request, res: Response) {
     activeOrders,
     monthlyRevenueGhs: monthlyRevenue._sum.totalGhs?.toString() ?? "0",
     lowStockCount: Number((lowStockCount as [{ count: bigint }])[0].count),
-    totalOutstandingGhs: unpaidInvoices._sum.balanceDue?.toString() ?? "0",
+    totalOutstandingGhs: unpaidInvoices._sum.balanceGhs?.toString() ?? "0",
     pendingJobCards,
   });
 }
@@ -60,7 +60,7 @@ export async function getSalesReport(req: Request, res: Response) {
     },
     include: {
       customer: { select: { id: true, name: true } },
-      payments: { select: { amountGhs: true, paidAt: true } },
+      payments: { select: { amountGhs: true, paymentDate: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -68,8 +68,8 @@ export async function getSalesReport(req: Request, res: Response) {
   const totals = invoices.reduce(
     (acc, inv) => ({
       totalGhs: acc.totalGhs.plus(new Decimal(inv.totalGhs.toString())),
-      totalPaid: acc.totalPaid.plus(new Decimal(inv.amountPaid.toString())),
-      totalOutstanding: acc.totalOutstanding.plus(new Decimal(inv.balanceDue.toString())),
+      totalPaid: acc.totalPaid.plus(new Decimal(inv.amountPaidGhs.toString())),
+      totalOutstanding: acc.totalOutstanding.plus(new Decimal(inv.balanceGhs.toString())),
     }),
     { totalGhs: new Decimal(0), totalPaid: new Decimal(0), totalOutstanding: new Decimal(0) }
   );
@@ -205,18 +205,55 @@ export async function getPurchasesReport(req: Request, res: Response) {
     orderBy: { createdAt: "desc" },
   });
 
-  const totals = pos.reduce(
-    (acc, po) => ({
-      totalUsd: acc.totalUsd.plus(new Decimal(po.totalUsd.toString())),
-      totalGhs: acc.totalGhs.plus(new Decimal(po.totalGhs.toString())),
-    }),
-    { totalUsd: new Decimal(0), totalGhs: new Decimal(0) }
+  const totalValue = pos.reduce(
+    (acc, po) => acc.plus(new Decimal(po.total.toString())),
+    new Decimal(0)
   );
 
   sendSuccess(res, {
-    totals: { totalUsd: totals.totalUsd.toString(), totalGhs: totals.totalGhs.toString() },
+    totals: { total: totalValue.toString() },
     orders: pos,
   });
+}
+
+// ── Chart Data ────────────────────────────────────────────────────────────────
+
+export async function getChartData(_req: Request, res: Response) {
+  const now = new Date();
+
+  // Last 6 months revenue
+  const months: { month: string; revenueGhs: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = new Date(d.getFullYear(), d.getMonth(), 1);
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    const agg = await prisma.invoice.aggregate({
+      _sum: { totalGhs: true },
+      where: { status: { not: "CANCELLED" }, createdAt: { gte: start, lt: end } },
+    });
+    months.push({
+      month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      revenueGhs: agg._sum.totalGhs?.toString() ?? "0",
+    });
+  }
+
+  // Top 5 materials by stock value
+  const topMaterials = await prisma.$queryRaw<Array<{ code: string; name: string; value: number }>>`
+    SELECT code, name, ROUND(CAST(current_stock AS numeric) * CAST(unit_cost_ghs AS numeric), 2) AS value
+    FROM materials
+    WHERE is_active = true
+    ORDER BY value DESC
+    LIMIT 5
+  `;
+
+  // Job card status breakdown
+  const jobStatusRaw = await prisma.jobCard.groupBy({
+    by: ["status"],
+    _count: { _all: true },
+  });
+  const jobStatus = jobStatusRaw.map((r) => ({ status: r.status, count: r._count._all }));
+
+  sendSuccess(res, { revenueTrend: months, topMaterials, jobStatus });
 }
 
 // ── Aged Debtors ──────────────────────────────────────────────────────────────
@@ -225,14 +262,14 @@ export async function getAgedDebtors(_req: Request, res: Response) {
   const now = new Date();
 
   const invoices = await prisma.invoice.findMany({
-    where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, balanceDue: { gt: 0 } },
+    where: { status: { in: ["SENT", "PARTIAL", "OVERDUE"] }, balanceGhs: { gt: 0 } },
     include: { customer: { select: { id: true, name: true } } },
     orderBy: { dueDate: "asc" },
   });
 
   const buckets = { current: new Decimal(0), days30: new Decimal(0), days60: new Decimal(0), days90plus: new Decimal(0) };
   const rows = invoices.map((inv) => {
-    const balance = new Decimal(inv.balanceDue.toString());
+    const balance = new Decimal(inv.balanceGhs.toString());
     const daysOverdue = inv.dueDate
       ? Math.max(0, Math.floor((now.getTime() - inv.dueDate.getTime()) / 86400000))
       : 0;
@@ -247,7 +284,7 @@ export async function getAgedDebtors(_req: Request, res: Response) {
       invoiceNumber: inv.invoiceNumber,
       customer: inv.customer,
       dueDate: inv.dueDate,
-      balanceDue: balance.toString(),
+      balanceGhs: balance.toString(),
       daysOverdue,
     };
   });

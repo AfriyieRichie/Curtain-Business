@@ -4,6 +4,10 @@ import {
   Users, ClipboardList, TrendingUp, AlertTriangle,
   Receipt, Wrench, ArrowRight,
 } from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
 import { reportsApi } from "@/api/reports";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 
@@ -36,16 +40,24 @@ function fmtGhs(v: string | number) {
   return `GHS ${Number(v).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const PIE_COLORS = ["#7c3aed", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
+
 export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: reportsApi.getDashboard,
     refetchInterval: 30_000,
   });
+  const { data: chartsData } = useQuery({
+    queryKey: ["charts"],
+    queryFn: reportsApi.getCharts,
+    refetchInterval: 60_000,
+  });
 
   if (isLoading) return <FullPageSpinner />;
 
   const kpis = data?.data;
+  const charts = chartsData?.data;
 
   return (
     <div className="space-y-6">
@@ -101,7 +113,59 @@ export default function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* Charts row */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Revenue trend */}
+        <div className="card lg:col-span-2">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Revenue Trend (6 months)</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={charts?.revenueTrend?.map((d) => ({ ...d, revenue: Number(d.revenueGhs) })) ?? []}>
+              <defs>
+                <linearGradient id="rev" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#7c3aed" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v: number) => [`GHS ${v.toLocaleString()}`, "Revenue"]} />
+              <Area type="monotone" dataKey="revenue" stroke="#7c3aed" fill="url(#rev)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Production status */}
+        <div className="card">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Production Status</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart>
+              <Pie data={charts?.jobStatus ?? []} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={70} label={({ status, percent }: { status: string; percent: number }) => `${status} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                {(charts?.jobStatus ?? []).map((_, i) => (
+                  <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Top materials + Quick actions */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="card lg:col-span-2">
+          <h2 className="mb-4 text-base font-semibold text-gray-900">Top Materials by Value</h2>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={charts?.topMaterials ?? []} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+              <YAxis type="category" dataKey="code" tick={{ fontSize: 11 }} width={80} />
+              <Tooltip formatter={(v: number) => [`GHS ${v.toLocaleString()}`, "Stock Value"]} />
+              <Bar dataKey="value" fill="#7c3aed" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
         <div className="card">
           <h2 className="mb-4 text-base font-semibold text-gray-900">Quick Actions</h2>
           <div className="space-y-2">
@@ -121,22 +185,6 @@ export default function DashboardPage() {
               </Link>
             ))}
           </div>
-        </div>
-
-        <div className="card">
-          <h2 className="mb-4 text-base font-semibold text-gray-900">System Status</h2>
-          <dl className="space-y-3">
-            {[
-              { label: "Low Stock Alerts", value: kpis?.lowStockCount ?? 0, warn: (kpis?.lowStockCount ?? 0) > 0 },
-              { label: "Unpaid Invoices", value: kpis ? fmtGhs(kpis.totalOutstandingGhs) : "—", warn: Number(kpis?.totalOutstandingGhs ?? 0) > 0 },
-              { label: "Active Production Jobs", value: kpis?.pendingJobCards ?? 0, warn: false },
-            ].map((item) => (
-              <div key={item.label} className="flex justify-between text-sm">
-                <dt className="text-gray-500">{item.label}</dt>
-                <dd className={`font-medium ${item.warn ? "text-amber-600" : "text-gray-900"}`}>{item.value}</dd>
-              </div>
-            ))}
-          </dl>
         </div>
       </div>
     </div>

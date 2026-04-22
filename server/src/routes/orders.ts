@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { authGuard } from "../middleware/authGuard";
 import { rbacGuard } from "../middleware/rbacGuard";
 import * as ctrl from "../controllers/orders.controller";
+import * as pdfCtrl from "../controllers/pdf.controller";
 
 const router = Router();
 
@@ -61,6 +62,14 @@ router.post("/:id/job-cards/:jobCardId/materials/:materialId/issue",
   param("materialId").isUUID(),
   validate,
   ctrl.issueMaterial
+);
+
+router.get("/:id/job-cards/:jobCardId/pdf",
+  authGuard,
+  param("id").isUUID(),
+  param("jobCardId").isUUID(),
+  validate,
+  pdfCtrl.jobCardPDF
 );
 
 export default router;

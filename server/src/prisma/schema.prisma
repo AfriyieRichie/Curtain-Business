@@ -66,10 +66,10 @@ enum QuoteStatus {
 }
 
 enum OrderStatus {
+  PENDING
   CONFIRMED
   IN_PRODUCTION
-  QUALITY_CHECK
-  READY
+  COMPLETED
   DELIVERED
   CANCELLED
 }
@@ -91,8 +91,9 @@ enum InvoiceStatus {
   DRAFT
   SENT
   PAID
-  PARTIALLY_PAID
+  PARTIAL
   OVERDUE
+  CANCELLED
 }
 
 enum PaymentMethod {
@@ -378,9 +379,10 @@ model Customer {
 model CustomerWindow {
   id         String  @id @default(uuid())
   customerId String  @map("customer_id")
-  label      String
+  roomName   String  @map("room_name")
   widthCm    Decimal @map("width_cm") @db.Decimal(8, 2)
   dropCm     Decimal @map("drop_cm") @db.Decimal(8, 2)
+  quantity   Int     @default(1)
   notes      String?
 
   customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)

@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Wrench } from "lucide-react";
+import { Wrench, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { ordersApi } from "@/api/orders";
+import { pdfApi } from "@/api/pdf";
 import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
@@ -116,13 +117,19 @@ function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: st
               </div>
             )}
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 flex-wrap">
               {jc.status === "PENDING" && (
                 <button onClick={() => updateJC({ jobCardId: jc.id, status: "IN_PROGRESS" })} className="btn-secondary text-xs py-1 px-2">Start</button>
               )}
               {jc.status === "IN_PROGRESS" && (
                 <button onClick={() => updateJC({ jobCardId: jc.id, status: "COMPLETED" })} className="btn-primary text-xs py-1 px-2">Complete</button>
               )}
+              <button
+                onClick={() => pdfApi.downloadJobCard(orderId, jc.id).catch(() => toast.error("PDF failed"))}
+                className="btn-secondary text-xs py-1 px-2 flex items-center gap-1"
+              >
+                <Download size={11} /> Job Card
+              </button>
             </div>
           </div>
         ))

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Receipt } from "lucide-react";
+import { Search, Receipt, Download, Mail } from "lucide-react";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
 import { invoicesApi } from "@/api/invoices";
+import { pdfApi } from "@/api/pdf";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { FullPageSpinner } from "@/components/ui/Spinner";
@@ -71,6 +72,11 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
   const { data: paymentsData } = useQuery({ queryKey: ["payments", invoice.id], queryFn: () => invoicesApi.listPayments(invoice.id) });
   const full = data?.data ?? invoice;
   const payments: Payment[] = paymentsData?.data ?? [];
+  const { mutate: emailInv, isPending: isEmailing } = useMutation({
+    mutationFn: () => invoicesApi.emailInvoice(invoice.id),
+    onSuccess: () => toast.success("Invoice emailed"),
+    onError: () => toast.error("Email failed"),
+  });
 
   return (
     <div className="space-y-5">
@@ -78,7 +84,7 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         <div><span className="text-gray-500">Customer:</span> <span className="font-medium">{full.customer?.name}</span></div>
         <div><span className="text-gray-500">Status:</span> <StatusBadge status={full.status} type="invoice" /></div>
         <div><span className="text-gray-500">Total:</span> <span className="font-semibold">{fmtGhs(full.totalGhs)}</span></div>
-        <div><span className="text-gray-500">Balance Due:</span> <span className={`font-semibold ${Number(full.balanceDue) > 0 ? "text-red-600" : "text-green-600"}`}>{fmtGhs(full.balanceDue)}</span></div>
+        <div><span className="text-gray-500">Balance Due:</span> <span className={`font-semibold ${Number(full.balanceGhs) > 0 ? "text-red-600" : "text-green-600"}`}>{fmtGhs(full.balanceGhs)}</span></div>
         <div><span className="text-gray-500">Due Date:</span> <span>{formatDate(full.dueDate)}</span></div>
         <div><span className="text-gray-500">Issued:</span> <span>{formatDate(full.createdAt)}</span></div>
       </div>
@@ -107,6 +113,12 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
           </table>
         </div>
       )}
+
+      <div className="flex gap-2">
+        <button onClick={() => emailInv()} disabled={isEmailing} className="btn-secondary flex items-center gap-1 text-sm">
+          {isEmailing ? <Spinner size="sm" /> : <Mail size={14} />} Email to Customer
+        </button>
+      </div>
 
       {full.status !== "PAID" && full.status !== "DRAFT" && (
         <div>
@@ -174,7 +186,7 @@ export default function InvoicesPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {invoices.map((inv) => {
-                  const balance = Number(inv.balanceDue ?? "0");
+                  const balance = Number(inv.balanceGhs ?? "0");
                   return (
                     <tr key={inv.id} className="hover:bg-gray-50">
                       <td className="table-td font-mono text-xs font-semibold text-violet-700">{inv.invoiceNumber}</td>
@@ -184,7 +196,10 @@ export default function InvoicesPage() {
                       <td className="table-td text-right font-mono">{fmtGhs(inv.totalGhs)}</td>
                       <td className={`table-td text-right font-mono font-medium ${balance > 0 ? "text-red-600" : "text-green-600"}`}>{fmtGhs(balance)}</td>
                       <td className="table-td">
-                        <button onClick={() => setSelected(inv)} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">View</button>
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => setSelected(inv)} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">View</button>
+                          <button onClick={() => pdfApi.downloadInvoice(inv.id).catch(() => toast.error("PDF failed"))} className="rounded px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 flex items-center gap-1"><Download size={12} /> PDF</button>
+                        </div>
                       </td>
                     </tr>
                   );

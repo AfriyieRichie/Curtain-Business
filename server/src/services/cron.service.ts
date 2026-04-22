@@ -1,5 +1,5 @@
 import { prisma } from "../utils/prisma";
-import Decimal from "decimal.js";
+import { sendLowStockAlert } from "./email.service";
 
 async function markOverdueInvoices() {
   const now = new Date();
@@ -22,9 +22,13 @@ async function logLowStockAlert() {
 
   if (result.length > 0) {
     console.warn(`[CRON] Low stock alert: ${result.length} material(s) at or below minimum.`);
-    result.forEach((m) => {
-      console.warn(`  - ${m.code} "${m.name}": stock=${m.current_stock}, min=${m.minimum_stock}`);
-    });
+    const formatted = result.map((m) => ({
+      code: m.code,
+      name: m.name,
+      currentStock: String(m.current_stock),
+      minimumStock: String(m.minimum_stock),
+    }));
+    sendLowStockAlert(formatted).catch(console.error);
   }
 }
 

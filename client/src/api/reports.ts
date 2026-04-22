@@ -31,4 +31,11 @@ export const reportsApi = {
 
   getAgedDebtors: () =>
     apiClient.get<ApiResponse<unknown>>("/reports/aged-debtors").then((r) => r.data),
+
+  getCharts: () =>
+    apiClient.get<ApiResponse<{
+      revenueTrend: Array<{ month: string; revenueGhs: string }>;
+      topMaterials: Array<{ code: string; name: string; value: number }>;
+      jobStatus: Array<{ status: string; count: number }>;
+    }>>("/reports/charts").then((r) => r.data),
 };

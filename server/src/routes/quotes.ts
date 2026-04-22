@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { authGuard } from "../middleware/authGuard";
 import { rbacGuard } from "../middleware/rbacGuard";
 import * as ctrl from "../controllers/quotes.controller";
+import * as pdfCtrl from "../controllers/pdf.controller";
 
 const router = Router();
 
@@ -58,5 +59,7 @@ router.post("/:id/convert",
   validate,
   ctrl.convertToOrder
 );
+
+router.get("/:id/pdf", authGuard, param("id").isUUID(), validate, pdfCtrl.quotePDF);
 
 export default router;
