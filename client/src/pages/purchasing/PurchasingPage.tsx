@@ -52,7 +52,7 @@ function SupplierForm({ supplier, onSuccess, onCancel }: { supplier?: Supplier; 
         <div>
           <label className="label">Currency</label>
           <select {...register("preferredCurrency")} className="input">
-            {["USD", "EUR", "GBP", "GHS"].map((c) => <option key={c}>{c}</option>)}
+            {["USD", "EUR", "GBP", "GHS"].map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
       </div>

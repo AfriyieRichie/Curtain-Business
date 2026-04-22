@@ -28,8 +28,8 @@ export const authApi = {
     apiClient.patch<ApiResponse<User>>(`/auth/users/${id}`, data).then((r) => r.data),
 
   deactivateUser: (id: string) =>
-    apiClient.patch<ApiResponse<User>>(`/auth/users/${id}/deactivate`).then((r) => r.data),
+    apiClient.put<ApiResponse<User>>(`/auth/users/${id}/deactivate`).then((r) => r.data),
 
   resetPassword: (id: string, password: string) =>
-    apiClient.patch<ApiResponse<void>>(`/auth/users/${id}/reset-password`, { password }).then((r) => r.data),
+    apiClient.put<ApiResponse<void>>(`/auth/users/${id}/reset-password`, { newPassword: password }).then((r) => r.data),
 };

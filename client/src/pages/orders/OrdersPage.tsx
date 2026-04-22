@@ -147,7 +147,7 @@ export default function OrdersPage() {
         </div>
         <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input max-w-44">
           <option value="">All statuses</option>
-          {["PENDING", "CONFIRMED", "IN_PRODUCTION", "COMPLETED", "DELIVERED", "CANCELLED"].map((s) => <option key={s}>{s}</option>)}
+          {["PENDING", "CONFIRMED", "IN_PRODUCTION", "COMPLETED", "DELIVERED", "CANCELLED"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 

@@ -43,7 +43,7 @@ function PaymentForm({ invoiceId, onSuccess, onCancel }: { invoiceId: string; on
           <label className="label">Method *</label>
           <select {...register("method", { required: true })} className="input">
             <option value="">Select…</option>
-            {["CASH", "BANK_TRANSFER", "MOBILE_MONEY", "CHEQUE"].map((m) => <option key={m}>{m.replace("_", " ")}</option>)}
+            {["CASH", "BANK_TRANSFER", "MOBILE_MONEY", "CHEQUE"].map((m) => <option key={m} value={m}>{m.replace(/_/g, " ")}</option>)}
           </select>
         </div>
       </div>
@@ -104,8 +104,8 @@ function InvoiceDetail({ invoice }: { invoice: Invoice }) {
             <tbody className="divide-y divide-gray-50">
               {payments.map((p) => (
                 <tr key={p.id}>
-                  <td className="py-1.5">{formatDate((p as unknown as { paidAt?: string }).paidAt ?? p.createdAt)}</td>
-                  <td className="py-1.5">{(p as unknown as { method?: string }).method ?? p.paymentMethod}</td>
+                  <td className="py-1.5">{formatDate(p.paymentDate ?? p.createdAt)}</td>
+                  <td className="py-1.5">{p.paymentMethod}</td>
                   <td className="py-1.5 text-right font-mono font-medium">{fmtGhs(p.amountGhs)}</td>
                 </tr>
               ))}
@@ -161,7 +161,7 @@ export default function InvoicesPage() {
         </div>
         <select value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} className="input max-w-40">
           <option value="">All statuses</option>
-          {["DRAFT", "SENT", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"].map((s) => <option key={s}>{s}</option>)}
+          {["DRAFT", "SENT", "PARTIAL", "PAID", "OVERDUE", "CANCELLED"].map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
 

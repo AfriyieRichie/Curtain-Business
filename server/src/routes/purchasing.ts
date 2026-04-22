@@ -21,10 +21,10 @@ router.get("/suppliers/:id",
 router.post("/suppliers",
   authGuard, rbacGuard("ACCOUNTS"),
   body("name").isString().notEmpty(),
-  body("contactName").optional().isString(),
+  body("contactPerson").optional().isString(),
   body("email").optional().isEmail(),
   body("phone").optional().isString(),
-  body("currency").optional().isIn(["USD", "EUR", "GBP", "GHS"]),
+  body("preferredCurrency").optional().isIn(["USD", "EUR", "GBP", "GHS"]),
   validate,
   ctrl.createSupplier
 );
