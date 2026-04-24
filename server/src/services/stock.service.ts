@@ -133,9 +133,18 @@ export async function receiveGRN(
 
       const receivedQty = new Decimal(item.receivedQty);
       const unitCostUsd = new Decimal(item.unitCostUsd);
-      const unitCostGhs = recalcGHSCost(unitCostUsd, rate);
 
-      // Create GRN line
+      // Weighted Average Cost: (existing_stock × existing_cost + received_qty × new_cost) ÷ total_qty
+      const existingStock = new Decimal(poItem.material.currentStock.toString());
+      const existingCostUsd = new Decimal(poItem.material.unitCostUsd.toString());
+      const totalQty = existingStock.plus(receivedQty);
+      const avgCostUsd = totalQty.gt(0)
+        ? existingStock.mul(existingCostUsd).plus(receivedQty.mul(unitCostUsd)).div(totalQty)
+        : unitCostUsd;
+      const avgCostGhs = recalcGHSCost(avgCostUsd, rate);
+
+      // GRN line records the actual received cost (not the average)
+      const unitCostGhs = recalcGHSCost(unitCostUsd, rate);
       await tx.goodsReceivedItem.create({
         data: {
           grnId: grn.id,
@@ -147,15 +156,15 @@ export async function receiveGRN(
         },
       });
 
-      // Add to stock
+      // Stock and material cost updated to weighted average
       await tx.material.update({
         where: { id: poItem.materialId },
         data: {
           currentStock: { increment: receivedQty.toNumber() },
-          unitCostUsd,
-          unitCostGhs,
+          unitCostUsd: avgCostUsd,
+          unitCostGhs: avgCostGhs,
           exchangeRateUsed: rate,
-          sellingPriceGhs: applyMarkup(unitCostGhs, markup),
+          sellingPriceGhs: applyMarkup(avgCostGhs, markup),
         },
       });
 

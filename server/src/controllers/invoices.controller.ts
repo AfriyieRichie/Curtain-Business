@@ -192,8 +192,13 @@ export async function recordPayment(req: Request, res: Response) {
 
 export async function emailInvoice(req: Request, res: Response) {
   const pdf = await generateInvoicePDF(req.params.id);
-  await sendInvoiceEmail(req.params.id, pdf);
-  sendSuccess(res, null, "Invoice emailed.");
+  try {
+    await sendInvoiceEmail(req.params.id, pdf);
+    sendSuccess(res, null, "Invoice emailed to customer.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "SMTP error";
+    throw new AppError(500, `Email could not be delivered: ${msg}. Check SMTP settings.`);
+  }
 }
 
 export async function listPayments(req: Request, res: Response) {

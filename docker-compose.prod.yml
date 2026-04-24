@@ -1,24 +1,47 @@
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-curtains}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-curtains_erp}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-curtains} -d ${DB_NAME:-curtains_erp}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   server:
     build:
       context: ./server
       dockerfile: Dockerfile
+    restart: always
     ports:
       - "4000:4000"
     environment:
       - NODE_ENV=production
+      - DATABASE_URL=postgresql://${DB_USER:-curtains}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-curtains_erp}
     env_file:
-      - ./server/.env
-    restart: unless-stopped
+      - ./server/.env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npx prisma migrate deploy && node dist/index.js"
 
   client:
     build:
       context: ./client
       dockerfile: Dockerfile
+    restart: always
     ports:
       - "80:80"
     depends_on:
       - server
-    restart: unless-stopped
+
+volumes:
+  pgdata:

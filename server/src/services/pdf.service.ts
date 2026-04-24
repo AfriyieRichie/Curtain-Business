@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import Decimal from "decimal.js";
 import { prisma } from "../utils/prisma";
 
 type PDFBuffer = Promise<Buffer>;
@@ -285,10 +286,9 @@ export async function generatePurchaseOrderPDF(poId: string): PDFBuffer {
   doc.moveDown(1);
   tableHeader(doc, [
     { label: "Code", x: 55, width: 80 },
-    { label: "Material", x: 135, width: 200 },
-    { label: "Qty", x: 335, width: 55, align: "right" },
-    { label: "Unit", x: 390, width: 40 },
-    { label: "Unit Cost (USD)", x: 430, width: 65, align: "right" },
+    { label: "Material", x: 135, width: 195 },
+    { label: "Qty / Unit", x: 330, width: 90 },
+    { label: "Unit Cost (USD)", x: 420, width: 75, align: "right" },
     { label: "Total (USD)", x: 495, width: 50, align: "right" },
   ]);
 
@@ -298,10 +298,9 @@ export async function generatePurchaseOrderPDF(poId: string): PDFBuffer {
     if (i % 2 === 1) doc.rect(50, rowY, 495, 16).fill("#f9fafb");
     doc.fillColor("#111827");
     doc.text(item.material.code, 55, rowY + 3, { width: 80 });
-    doc.text(item.material.name, 135, rowY + 3, { width: 200 });
-    doc.text(Number(item.orderedQty).toFixed(2), 335, rowY + 3, { width: 55, align: "right" });
-    doc.text(item.material.unit, 390, rowY + 3, { width: 40 });
-    doc.text(Number(item.unitCost).toFixed(4), 430, rowY + 3, { width: 65, align: "right" });
+    doc.text(item.material.name, 135, rowY + 3, { width: 195 });
+    doc.text(`${Number(item.orderedQty).toFixed(2)} ${item.material.unit}`, 330, rowY + 3, { width: 90 });
+    doc.text(Number(item.unitCost).toFixed(2), 420, rowY + 3, { width: 75, align: "right" });
     doc.text(Number(item.lineTotal).toFixed(2), 495, rowY + 3, { width: 50, align: "right" });
     doc.y = rowY + 18;
   });
@@ -322,6 +321,101 @@ export async function generatePurchaseOrderPDF(poId: string): PDFBuffer {
   doc.text("All amounts in USD. GHS equivalent calculated at time of goods receipt.", { align: "center" });
 
   doc.moveDown(1);
+  const footer = settings["business.invoiceFooter"] ?? "Thank you for your business!";
+  doc.fontSize(9).text(footer, { align: "center" });
+
+  doc.end();
+  return buf;
+}
+
+// ── GRN PDF ───────────────────────────────────────────────────────────────────
+
+export async function generateGRNPDF(grnId: string): PDFBuffer {
+  const grn = await prisma.goodsReceivedNote.findUniqueOrThrow({
+    where: { id: grnId },
+    include: {
+      po: {
+        include: { supplier: true },
+      },
+      items: {
+        include: { material: { select: { id: true, code: true, name: true, unit: true } } },
+      },
+      createdBy: { select: { name: true } },
+    },
+  });
+
+  const settings = await getSettings();
+  const doc = createDoc();
+  const buf = bufferDoc(doc);
+
+  drawHeader(doc, settings);
+
+  doc.fontSize(16).font("Helvetica-Bold").text("GOODS RECEIVED NOTE", { align: "right" });
+  doc.fontSize(10).font("Helvetica");
+  const metaY = doc.y;
+  doc.text(`GRN #: ${grn.grnNumber}`, 297, metaY, { width: 247, align: "right" });
+  doc.text(`Date: ${new Date(grn.receivedDate).toLocaleDateString("en-GB")}`, { align: "right" });
+  doc.text(`PO Ref: ${grn.po.poNumber}`, { align: "right" });
+  doc.text(`Exchange Rate: GHS ${Number(grn.exchangeRateAtReceipt).toFixed(2)} / USD`, { align: "right" });
+  if (grn.createdBy) doc.text(`Received by: ${grn.createdBy.name}`, { align: "right" });
+
+  doc.moveDown(0.5);
+  doc.fontSize(9).font("Helvetica-Bold").text("SUPPLIER", 50, doc.y);
+  doc.font("Helvetica").fontSize(10);
+  doc.text(grn.po.supplier.name);
+  if (grn.po.supplier.contactPerson) doc.text(grn.po.supplier.contactPerson);
+  if (grn.po.supplier.phone) doc.text(grn.po.supplier.phone);
+  if (grn.po.supplier.email) doc.text(grn.po.supplier.email);
+  if (grn.po.supplier.address) doc.text(grn.po.supplier.address);
+
+  doc.moveDown(1);
+  tableHeader(doc, [
+    { label: "Code", x: 55, width: 75 },
+    { label: "Material", x: 130, width: 175 },
+    { label: "Qty / Unit", x: 305, width: 75 },
+    { label: "Unit Cost (USD)", x: 380, width: 75, align: "right" },
+    { label: "Total (USD)", x: 455, width: 55, align: "right" },
+    { label: "Total (GHS)", x: 510, width: 55, align: "right" },
+  ]);
+
+  const rate = new Decimal(grn.exchangeRateAtReceipt.toString());
+  let totalUsd = new Decimal(0);
+  let totalGhs = new Decimal(0);
+
+  doc.fontSize(9).font("Helvetica");
+  grn.items.forEach((item, i) => {
+    const rowY = doc.y;
+    if (i % 2 === 1) doc.rect(50, rowY, 495, 16).fill("#f9fafb");
+    doc.fillColor("#111827");
+    const lineTotalUsd = new Decimal(item.unitCostUsd.toString()).mul(item.receivedQty.toString());
+    const lineTotalGhs = lineTotalUsd.mul(rate);
+    totalUsd = totalUsd.plus(lineTotalUsd);
+    totalGhs = totalGhs.plus(lineTotalGhs);
+
+    doc.text(item.material.code, 55, rowY + 3, { width: 75 });
+    doc.text(item.material.name, 130, rowY + 3, { width: 175 });
+    doc.text(`${Number(item.receivedQty).toFixed(2)} ${item.material.unit}`, 305, rowY + 3, { width: 75 });
+    doc.text(Number(item.unitCostUsd).toFixed(2), 380, rowY + 3, { width: 75, align: "right" });
+    doc.text(lineTotalUsd.toFixed(2), 455, rowY + 3, { width: 55, align: "right" });
+    doc.text(lineTotalGhs.toFixed(2), 510, rowY + 3, { width: 55, align: "right" });
+    doc.y = rowY + 18;
+  });
+
+  doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e5e7eb").lineWidth(0.5).stroke();
+  doc.moveDown(0.5);
+
+  const totY = doc.y;
+  doc.fontSize(10).font("Helvetica").text("Total (USD):", 360, totY, { width: 95, align: "right" });
+  doc.text(`USD ${totalUsd.toFixed(2)}`, 455, totY, { width: 85, align: "right" });
+  doc.moveDown(0.3);
+  doc.font("Helvetica-Bold").fontSize(11);
+  doc.text("Total (GHS):", 360, doc.y, { width: 95, align: "right" });
+  doc.text(`GHS ${totalGhs.toFixed(2)}`, 455, doc.y, { width: 85, align: "right" });
+
+  doc.moveDown(1);
+  doc.font("Helvetica").fontSize(8).fillColor("#6b7280");
+  doc.text("GHS totals calculated at the exchange rate stated above.", { align: "center" });
+  doc.moveDown(0.5);
   const footer = settings["business.invoiceFooter"] ?? "Thank you for your business!";
   doc.fontSize(9).text(footer, { align: "center" });
 

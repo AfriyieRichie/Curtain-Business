@@ -41,5 +41,12 @@ export function errorHandler(
   }
 
   console.error("Unhandled error:", err);
+
+  // Surface DB connection errors clearly without leaking credentials
+  if (err.message?.includes("Can't reach database") || err.message?.includes("connection") || err.constructor?.name === "PrismaClientInitializationError") {
+    res.status(503).json({ success: false, message: "Database connection failed. Please try again in a moment." });
+    return;
+  }
+
   res.status(500).json({ success: false, message: "An unexpected error occurred." });
 }

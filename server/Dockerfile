@@ -15,5 +15,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY src/prisma/schema.prisma ./src/prisma/schema.prisma
+COPY src/prisma/migrations ./src/prisma/migrations
 EXPOSE 4000
 CMD ["node", "dist/index.js"]

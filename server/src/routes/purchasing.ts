@@ -114,6 +114,14 @@ router.get("/purchase-orders/:id/grns",
   ctrl.listGRNs
 );
 
+router.get("/purchase-orders/:id/grns/:grnId/pdf",
+  authGuard,
+  param("id").isUUID(),
+  param("grnId").isUUID(),
+  validate,
+  ctrl.downloadGRNPDF
+);
+
 router.post("/purchase-orders/:id/grns",
   authGuard, rbacGuard("ACCOUNTS"),
   param("id").isUUID(),

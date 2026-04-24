@@ -6,7 +6,7 @@ import { AppError } from "../middleware/errorHandler";
 import { nextDocNumber } from "../services/doc-number.service";
 import { receiveGRN } from "../services/stock.service";
 import { getCurrentRate } from "../services/exchange-rate.service";
-import { generatePurchaseOrderPDF } from "../services/pdf.service";
+import { generatePurchaseOrderPDF, generateGRNPDF } from "../services/pdf.service";
 import { sendPurchaseOrderEmail } from "../services/email.service";
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
@@ -196,10 +196,23 @@ export async function emailPO(req: Request, res: Response) {
     include: { supplier: { select: { email: true, name: true } } },
   });
   if (!po.supplier.email) throw new AppError(400, "Supplier has no email address on file.");
+
   const pdf = await generatePurchaseOrderPDF(req.params.id);
-  await sendPurchaseOrderEmail(req.params.id, pdf);
-  await prisma.purchaseOrder.update({ where: { id: req.params.id }, data: { status: "SENT" } });
-  sendSuccess(res, null, `Purchase order sent to ${po.supplier.email}.`);
+
+  let emailWarning: string | null = null;
+  try {
+    await sendPurchaseOrderEmail(req.params.id, pdf);
+  } catch (e) {
+    emailWarning = e instanceof Error ? e.message : "SMTP error";
+  }
+
+  await prisma.purchaseOrder.update({ where: { id: req.params.id }, data: { status: "SENT" as never } });
+
+  if (emailWarning) {
+    sendSuccess(res, null, `PO marked as sent, but email could not be delivered: ${emailWarning}`);
+  } else {
+    sendSuccess(res, null, `Purchase order sent to ${po.supplier.email}.`);
+  }
 }
 
 export async function editPO(req: Request, res: Response) {
@@ -282,4 +295,16 @@ export async function createGRN(req: Request, res: Response) {
 
   const result = await receiveGRN(req.params.id, grnNumber, rate, items, req.auth!.userId);
   sendSuccess(res, result, "GRN created. Stock updated.", 201);
+}
+
+export async function downloadGRNPDF(req: Request, res: Response) {
+  const grn = await prisma.goodsReceivedNote.findUniqueOrThrow({
+    where: { id: req.params.grnId },
+    select: { grnNumber: true },
+  });
+  const buf = await generateGRNPDF(req.params.grnId);
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${grn.grnNumber}.pdf"`);
+  res.setHeader("Content-Length", buf.length);
+  res.end(buf);
 }

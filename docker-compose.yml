@@ -1,10 +1,23 @@
-# Docker Compose for local development
-# NOTE: PostgreSQL is hosted on Neon — this compose file is optional for running
-# the app containers locally. Set DATABASE_URL in .env to your Neon connection string.
-
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: curtains
+      POSTGRES_PASSWORD: curtains_dev
+      POSTGRES_DB: curtains_erp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U curtains -d curtains_erp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   server:
     build:
       context: ./server
@@ -16,8 +29,12 @@ services:
       - /app/node_modules
     environment:
       - NODE_ENV=development
+      - DATABASE_URL=postgresql://curtains:curtains_dev@postgres:5432/curtains_erp
     env_file:
       - ./server/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
     command: npm run dev
 
   client:
@@ -35,17 +52,5 @@ services:
       - ./client/.env
     command: npm run dev -- --host
 
-# To use a local Postgres instead of Neon, uncomment below and update DATABASE_URL:
-# postgres:
-#   image: postgres:16-alpine
-#   ports:
-#     - "5432:5432"
-#   environment:
-#     POSTGRES_USER: curtains
-#     POSTGRES_PASSWORD: curtains_dev
-#     POSTGRES_DB: curtains_erp
-#   volumes:
-#     - pgdata:/var/lib/postgresql/data
-#
-# volumes:
-#   pgdata:
+volumes:
+  pgdata:

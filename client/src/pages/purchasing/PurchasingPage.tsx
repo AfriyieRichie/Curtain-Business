@@ -567,9 +567,17 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
               <div key={grn.id} className="rounded-lg border border-green-100 bg-green-50 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono text-xs font-semibold text-green-800">{grn.grnNumber}</span>
-                  <span className="text-xs text-gray-500">
-                    Received {formatDate(grn.receivedDate)} · Rate: GHS {Number(grn.exchangeRateAtReceipt).toFixed(2)}/USD
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500">
+                      Received {formatDate(grn.receivedDate)} · Rate: GHS {Number(grn.exchangeRateAtReceipt).toFixed(2)}/USD
+                    </span>
+                    <button
+                      onClick={() => purchasingApi.downloadGRNPDF(po.id, grn.id, grn.grnNumber)}
+                      className="flex items-center gap-1 rounded px-2 py-0.5 text-xs text-green-700 hover:bg-green-100"
+                    >
+                      <Download size={11} /> PDF
+                    </button>
+                  </div>
                 </div>
                 <table className="w-full text-xs">
                   <thead>
@@ -602,6 +610,29 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
   );
 }
 
+// ── GRN Modal Wrapper (fetches full PO then renders GRNForm) ──────────────────
+
+function GRNModalWrapper({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: () => void; onCancel: () => void }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ["purchase-order", po.id],
+    queryFn: () => purchasingApi.getPO(po.id),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400 text-sm gap-2">
+        <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+        Loading order details…
+      </div>
+    );
+  }
+
+  const fullPO = data?.data;
+  if (!fullPO) return null;
+
+  return <GRNForm po={fullPO} onSuccess={onSuccess} onCancel={onCancel} />;
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PurchasingPage() {
@@ -611,6 +642,7 @@ export default function PurchasingPage() {
   const [search] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [detailPO, setDetailPO] = useState<PurchaseOrder | null>(null);
+  const [grnPO, setGrnPO] = useState<PurchaseOrder | null>(null);
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
 
   const { data: suppliersData } = useQuery({ queryKey: ["suppliers", page, search], queryFn: () => purchasingApi.listSuppliers({ page, search: search || undefined }) });
@@ -719,8 +751,8 @@ export default function PurchasingPage() {
                       <td className="table-td text-right font-mono">{fmtUsd(po.total)}</td>
                       <td className="table-td">
                         <div className="flex items-center gap-2">
-                          {!["RECEIVED", "CANCELLED"].includes(po.status) && (
-                            <button onClick={() => setDetailPO(po)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50 flex items-center gap-1">
+                          {["SENT", "PARTIALLY_RECEIVED"].includes(po.status) && (
+                            <button onClick={() => setGrnPO(po)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50 flex items-center gap-1">
                               <Truck size={12} /> Receive
                             </button>
                           )}
@@ -763,6 +795,17 @@ export default function PurchasingPage() {
             po={detailPO}
             onClose={() => setDetailPO(null)}
             onRefresh={() => qc.invalidateQueries({ queryKey: ["purchase-orders"] })}
+          />
+        </Modal>
+      )}
+
+      {/* Receive Goods (GRN) — opened directly from table row */}
+      {grnPO && (
+        <Modal open onClose={() => setGrnPO(null)} title={`Receive Goods — ${grnPO.poNumber}`} size="xl">
+          <GRNModalWrapper
+            po={grnPO}
+            onSuccess={() => { setGrnPO(null); qc.invalidateQueries({ queryKey: ["purchase-orders"] }); }}
+            onCancel={() => setGrnPO(null)}
           />
         </Modal>
       )}

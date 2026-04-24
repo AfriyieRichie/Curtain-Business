@@ -88,4 +88,7 @@ export const purchasingApi = {
 
   createGRN: (poId: string, data: { items: Array<{ poItemId: string; receivedQty: number; unitCostUsd: number }>; exchangeRateAtReceipt?: string }) =>
     apiClient.post<ApiResponse<{ grn: GRN }>>(`/purchasing/purchase-orders/${poId}/grns`, data).then((r) => r.data),
+
+  downloadGRNPDF: (poId: string, grnId: string, grnNumber: string) =>
+    downloadPDF(`/purchasing/purchase-orders/${poId}/grns/${grnId}/pdf`, `${grnNumber}.pdf`),
 };
