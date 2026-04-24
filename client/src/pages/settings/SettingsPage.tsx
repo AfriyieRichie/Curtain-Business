@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import { Plus, ShieldOff } from "lucide-react";
-import { settingsApi, type BusinessSetting } from "@/api/settings";
+import { Plus, ShieldOff, Pencil, Trash2 } from "lucide-react";
+import { settingsApi, type BusinessSetting, type MaterialCategory } from "@/api/settings";
 import { exchangeRateApi } from "@/api/exchange-rates";
 import { authApi, type CreateUserPayload } from "@/api/auth";
 import { useRateStore } from "@/store/rate";
@@ -14,8 +14,6 @@ import Modal from "@/components/ui/Modal";
 import { formatDateTime } from "@/lib/formatters";
 import type { User } from "@/types";
 
-type Tab = "general" | "currency" | "account" | "users";
-
 // ── General settings ──────────────────────────────────────────────────────────
 
 const GENERAL_KEYS = ["business.name", "business.phone", "business.email", "business.address"];
@@ -25,6 +23,7 @@ const LABEL: Record<string, string> = {
   "business.email": "Email",
   "business.address": "Address",
   "currency.markupRatio": "Default Markup Ratio",
+  "tax.vatRate": "VAT Rate (e.g. 0.20 = 20%)",
 };
 
 function GeneralSettings({ settings }: { settings: BusinessSetting[] }) {
@@ -40,7 +39,7 @@ function GeneralSettings({ settings }: { settings: BusinessSetting[] }) {
     onError: () => toast.error("Failed to save settings"),
   });
 
-  const displayedKeys = [...GENERAL_KEYS, "currency.markupRatio"];
+  const displayedKeys = [...GENERAL_KEYS, "currency.markupRatio", "tax.vatRate"];
 
   return (
     <div className="card max-w-lg space-y-4">
@@ -251,9 +250,125 @@ function UsersSettings() {
   );
 }
 
+// ── Material Categories ───────────────────────────────────────────────────────
+
+function CategoryForm({ category, onSuccess, onCancel }: { category?: MaterialCategory; onSuccess: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(category?.name ?? "");
+  const [description, setDescription] = useState(category?.description ?? "");
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => category
+      ? settingsApi.updateCategory(category.id, { name, description: description || undefined })
+      : settingsApi.createCategory({ name, description: description || undefined }),
+    onSuccess: () => { toast.success(category ? "Category updated." : "Category created."); onSuccess(); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to save";
+      toast.error(msg);
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="label">Name *</label>
+        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Fabric" />
+      </div>
+      <div>
+        <label className="label">Description</label>
+        <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <button type="button" className="btn-secondary" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn-primary" disabled={!name.trim() || isPending} onClick={() => mutate()}>
+          {isPending ? "Saving…" : category ? "Save Changes" : "Create Category"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CategoriesSettings() {
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editing, setEditing] = useState<MaterialCategory | null>(null);
+
+  const { data, isLoading } = useQuery({ queryKey: ["material-categories"], queryFn: settingsApi.listCategories });
+  const categories = data?.data ?? [];
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => settingsApi.deleteCategory(id),
+    onSuccess: () => { toast.success("Category deleted."); qc.invalidateQueries({ queryKey: ["material-categories"] }); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to delete";
+      toast.error(msg);
+    },
+  });
+
+  const refresh = () => { qc.invalidateQueries({ queryKey: ["material-categories"] }); setShowCreate(false); setEditing(null); };
+
+  return (
+    <div className="card space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900">Material Categories</h3>
+          <p className="text-sm text-gray-500 mt-0.5">Organise materials by category</p>
+        </div>
+        <button className="btn-primary" onClick={() => setShowCreate(true)}><Plus size={16} /> New Category</button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : categories.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4 text-center">No categories yet.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-200 text-xs text-gray-500 uppercase tracking-wide">
+              <th className="pb-2 text-left">Name</th>
+              <th className="pb-2 text-left">Description</th>
+              <th className="pb-2 text-right">Materials</th>
+              <th className="pb-2" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {categories.map((cat) => (
+              <tr key={cat.id} className="hover:bg-gray-50">
+                <td className="py-2.5 font-medium text-gray-900">{cat.name}</td>
+                <td className="py-2.5 text-gray-500">{cat.description ?? "—"}</td>
+                <td className="py-2.5 text-right text-gray-500">{cat._count?.materials ?? 0}</td>
+                <td className="py-2.5 text-right">
+                  <div className="flex items-center justify-end gap-2">
+                    <button onClick={() => setEditing(cat)} className="rounded p-1 text-gray-400 hover:text-violet-600 hover:bg-violet-50"><Pencil size={14} /></button>
+                    <button
+                      onClick={() => { if (confirm(`Delete "${cat.name}"?`)) deleteMutation.mutate(cat.id); }}
+                      disabled={(cat._count?.materials ?? 0) > 0}
+                      className="rounded p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={(cat._count?.materials ?? 0) > 0 ? "Cannot delete — materials linked" : "Delete"}
+                    ><Trash2 size={14} /></button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Category" size="sm">
+        <CategoryForm onSuccess={refresh} onCancel={() => setShowCreate(false)} />
+      </Modal>
+      {editing && (
+        <Modal open onClose={() => setEditing(null)} title="Edit Category" size="sm">
+          <CategoryForm category={editing} onSuccess={refresh} onCancel={() => setEditing(null)} />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const TAB_LABELS: Record<Tab, string> = { general: "General", currency: "Currency", account: "Account", users: "Users" };
+type Tab = "general" | "currency" | "account" | "users" | "categories";
+const TAB_LABELS: Record<Tab, string> = { general: "General", currency: "Currency", account: "Account", users: "Users", categories: "Categories" };
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("general");
@@ -262,7 +377,7 @@ export default function SettingsPage() {
   const settings = data?.data ?? [];
 
   const tabs: Tab[] = currentUser?.role === "ADMIN"
-    ? ["general", "currency", "account", "users"]
+    ? ["general", "currency", "account", "categories", "users"]
     : ["general", "currency", "account"];
 
   return (
@@ -283,6 +398,7 @@ export default function SettingsPage() {
           {tab === "general" && <GeneralSettings settings={settings} />}
           {tab === "currency" && <CurrencySettings />}
           {tab === "account" && <AccountSettings />}
+          {tab === "categories" && currentUser?.role === "ADMIN" && <CategoriesSettings />}
           {tab === "users" && currentUser?.role === "ADMIN" && <UsersSettings />}
         </>
       )}

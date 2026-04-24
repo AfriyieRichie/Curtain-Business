@@ -123,7 +123,7 @@ export async function generateInvoicePDF(invoiceId: string): PDFBuffer {
   doc.text(`GHS ${Number(invoice.subtotalGhs).toFixed(2)}`, 470, totY, { width: 70, align: "right" });
 
   if (Number(invoice.taxAmountGhs) > 0) {
-    doc.text(`Tax (${Number(invoice.taxRate).toFixed(0)}%):`, 380, doc.y, { width: 90, align: "right" });
+    doc.text(`VAT & Levies (${(Number(invoice.taxRate) * 100).toFixed(0)}%):`, 380, doc.y, { width: 90, align: "right" });
     doc.text(`GHS ${Number(invoice.taxAmountGhs).toFixed(2)}`, 470, doc.y, { width: 70, align: "right" });
   }
 

@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 import { formatDate } from "@/lib/formatters";
 
-type Tab = "sales" | "profitability" | "inventory" | "stock-movements" | "aged-debtors";
+type Tab = "sales" | "profitability" | "inventory" | "stock-movements" | "aged-debtors" | "vat";
 
 function fmtGhs(v: string | number) {
   return `GHS ${Number(v).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -197,6 +197,78 @@ function AgedDebtorsReport() {
   ) : null;
 }
 
+// ── VAT Report ────────────────────────────────────────────────────────────────
+
+function VatReport() {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["report-vat", from, to],
+    queryFn: () => reportsApi.getVat({ from: from || undefined, to: to || undefined }),
+  });
+  const report = data?.data as {
+    totals: { subtotalGhs: string; taxAmountGhs: string; totalGhs: string };
+    invoices: Array<{
+      id: string; invoiceNumber: string; issueDate: string; taxRate: string;
+      customer?: { name: string }; subtotalGhs: string; taxAmountGhs: string; totalGhs: string;
+    }>;
+  } | undefined;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-3 flex-wrap items-end">
+        <div><label className="label">From</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+        <div><label className="label">To</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <button onClick={() => refetch()} className="btn-secondary">Apply</button>
+      </div>
+      {isLoading ? <FullPageSpinner /> : report && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              ["Net Sales (excl. VAT)", report.totals.subtotalGhs],
+              ["Total VAT Collected", report.totals.taxAmountGhs],
+              ["Gross Total (incl. VAT)", report.totals.totalGhs],
+            ].map(([label, val]) => (
+              <div key={label} className="card text-center">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="text-xl font-bold text-gray-900 mt-1">{fmtGhs(val)}</p>
+              </div>
+            ))}
+          </div>
+          <div className="card p-0 overflow-hidden">
+            <table className="w-full">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="table-th">Invoice #</th>
+                  <th className="table-th">Customer</th>
+                  <th className="table-th">Date</th>
+                  <th className="table-th text-right">VAT Rate</th>
+                  <th className="table-th text-right">Subtotal</th>
+                  <th className="table-th text-right">VAT Amount</th>
+                  <th className="table-th text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {report.invoices.map((inv) => (
+                  <tr key={inv.id}>
+                    <td className="table-td font-mono text-xs font-semibold text-violet-700">{inv.invoiceNumber}</td>
+                    <td className="table-td">{inv.customer?.name ?? "—"}</td>
+                    <td className="table-td text-gray-500">{formatDate(inv.issueDate)}</td>
+                    <td className="table-td text-right">{(Number(inv.taxRate) * 100).toFixed(0)}%</td>
+                    <td className="table-td text-right font-mono">{fmtGhs(inv.subtotalGhs)}</td>
+                    <td className="table-td text-right font-mono text-amber-600">{fmtGhs(inv.taxAmountGhs)}</td>
+                    <td className="table-td text-right font-mono font-medium">{fmtGhs(inv.totalGhs)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const tabs: { key: Tab; label: string }[] = [
@@ -204,6 +276,7 @@ const tabs: { key: Tab; label: string }[] = [
   { key: "profitability", label: "Profitability" },
   { key: "inventory", label: "Inventory Valuation" },
   { key: "aged-debtors", label: "Aged Debtors" },
+  { key: "vat", label: "VAT Report" },
 ];
 
 export default function ReportsPage() {
@@ -226,6 +299,7 @@ export default function ReportsPage() {
       {tab === "profitability" && <ProfitabilityReport />}
       {tab === "inventory" && <InventoryReport />}
       {tab === "aged-debtors" && <AgedDebtorsReport />}
+      {tab === "vat" && <VatReport />}
     </div>
   );
 }

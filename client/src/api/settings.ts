@@ -7,6 +7,13 @@ export interface BusinessSetting {
   description?: string;
 }
 
+export interface MaterialCategory {
+  id: string;
+  name: string;
+  description?: string;
+  _count?: { materials: number };
+}
+
 export const settingsApi = {
   list: () =>
     apiClient.get<ApiResponse<BusinessSetting[]>>("/settings").then((r) => r.data),
@@ -19,6 +26,19 @@ export const settingsApi = {
 
   bulkUpsert: (updates: Array<{ key: string; value: string }>) =>
     apiClient.post<ApiResponse<BusinessSetting[]>>("/settings/bulk", updates).then((r) => r.data),
+
+  // Material Categories
+  listCategories: () =>
+    apiClient.get<ApiResponse<MaterialCategory[]>>("/settings/material-categories").then((r) => r.data),
+
+  createCategory: (data: { name: string; description?: string }) =>
+    apiClient.post<ApiResponse<MaterialCategory>>("/settings/material-categories", data).then((r) => r.data),
+
+  updateCategory: (id: string, data: { name?: string; description?: string }) =>
+    apiClient.patch<ApiResponse<MaterialCategory>>(`/settings/material-categories/${id}`, data).then((r) => r.data),
+
+  deleteCategory: (id: string) =>
+    apiClient.delete<ApiResponse<null>>(`/settings/material-categories/${id}`).then((r) => r.data),
 
   uploadLogo: (file: File) => {
     const fd = new FormData();

@@ -55,4 +55,12 @@ router.get("/aged-debtors",
   ctrl.getAgedDebtors
 );
 
+router.get("/vat",
+  authGuard, rbacGuard("ACCOUNTS"),
+  query("from").optional().isISO8601(),
+  query("to").optional().isISO8601(),
+  validate,
+  ctrl.getVatReport
+);
+
 export default router;

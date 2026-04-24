@@ -70,6 +70,14 @@ export async function generateInvoice(req: Request, res: Response) {
   const defaultDueDate = new Date();
   defaultDueDate.setDate(defaultDueDate.getDate() + 30);
 
+  const vatSetting = await prisma.businessSetting.findUnique({ where: { key: "tax.vatRate" } });
+  const vatRate = new Decimal(vatSetting?.value ?? "0.20");
+  const subtotalGhs = new Decimal(order.totalGhs.toString());
+  const taxAmountGhs = subtotalGhs.mul(vatRate).toDecimalPlaces(4);
+  const totalGhs = subtotalGhs.plus(taxAmountGhs);
+  const deposit = new Decimal(order.depositAmountGhs.toString());
+  const balanceGhs = totalGhs.minus(deposit).gt(0) ? totalGhs.minus(deposit) : new Decimal(0);
+
   const invoice = await prisma.$transaction(async (tx) => {
     const inv = await tx.invoice.create({
       data: {
@@ -79,12 +87,12 @@ export async function generateInvoice(req: Request, res: Response) {
         issueDate: new Date(),
         dueDate: dueDate ? new Date(dueDate) : defaultDueDate,
         exchangeRateSnapshot: order.exchangeRateSnapshot,
-        subtotalGhs: order.totalGhs,
-        totalGhs: order.totalGhs,
+        subtotalGhs,
+        taxRate: vatRate,
+        taxAmountGhs,
+        totalGhs,
         amountPaidGhs: order.depositAmountGhs,
-        balanceGhs: new Decimal(order.totalGhs.toString()).minus(new Decimal(order.depositAmountGhs.toString())).gte(0)
-          ? new Decimal(order.totalGhs.toString()).minus(new Decimal(order.depositAmountGhs.toString()))
-          : new Decimal(0),
+        balanceGhs,
         notes,
         items: {
           create: order.items.map((oi) => ({

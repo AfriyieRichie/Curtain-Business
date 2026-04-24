@@ -256,6 +256,44 @@ export async function getChartData(_req: Request, res: Response) {
   sendSuccess(res, { revenueTrend: months, topMaterials, jobStatus });
 }
 
+// ── VAT Report ────────────────────────────────────────────────────────────────
+
+export async function getVatReport(req: Request, res: Response) {
+  const { from, to } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      status: { notIn: ["CANCELLED", "DRAFT"] },
+      taxAmountGhs: { gt: 0 },
+      ...(Object.keys(dateFilter).length && { issueDate: dateFilter }),
+    },
+    include: { customer: { select: { id: true, name: true } } },
+    orderBy: { issueDate: "desc" },
+  });
+
+  const totals = invoices.reduce(
+    (acc, inv) => ({
+      subtotalGhs: acc.subtotalGhs.plus(new Decimal(inv.subtotalGhs.toString())),
+      taxAmountGhs: acc.taxAmountGhs.plus(new Decimal(inv.taxAmountGhs.toString())),
+      totalGhs: acc.totalGhs.plus(new Decimal(inv.totalGhs.toString())),
+    }),
+    { subtotalGhs: new Decimal(0), taxAmountGhs: new Decimal(0), totalGhs: new Decimal(0) }
+  );
+
+  sendSuccess(res, {
+    totals: {
+      subtotalGhs: totals.subtotalGhs.toString(),
+      taxAmountGhs: totals.taxAmountGhs.toString(),
+      totalGhs: totals.totalGhs.toString(),
+    },
+    invoices,
+  });
+}
+
 // ── Aged Debtors ──────────────────────────────────────────────────────────────
 
 export async function getAgedDebtors(_req: Request, res: Response) {

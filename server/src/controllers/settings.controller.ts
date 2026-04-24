@@ -43,6 +43,47 @@ export async function bulkUpsertSettings(req: Request, res: Response) {
   sendSuccess(res, results, "Settings saved.");
 }
 
+// ── Material Categories ───────────────────────────────────────────────────────
+
+export async function listCategories(_req: Request, res: Response) {
+  const cats = await prisma.materialCategory.findMany({
+    orderBy: { name: "asc" },
+    include: { _count: { select: { materials: true } } },
+  });
+  sendSuccess(res, cats);
+}
+
+export async function createCategory(req: Request, res: Response) {
+  const { name, description } = req.body as { name: string; description?: string };
+  const cat = await prisma.materialCategory.create({ data: { name, description } });
+  sendSuccess(res, cat, "Category created.", 201);
+}
+
+export async function updateCategory(req: Request, res: Response) {
+  const { name, description } = req.body as { name?: string; description?: string };
+  const cat = await prisma.materialCategory.update({
+    where: { id: req.params.id },
+    data: {
+      ...(name && { name }),
+      ...(description !== undefined && { description }),
+    },
+  });
+  sendSuccess(res, cat, "Category updated.");
+}
+
+export async function deleteCategory(req: Request, res: Response) {
+  const cat = await prisma.materialCategory.findUniqueOrThrow({
+    where: { id: req.params.id },
+    include: { _count: { select: { materials: true } } },
+  });
+  if (cat._count.materials > 0) {
+    const { AppError } = await import("../middleware/errorHandler");
+    throw new AppError(400, `Cannot delete — ${cat._count.materials} material(s) are linked to this category.`);
+  }
+  await prisma.materialCategory.delete({ where: { id: req.params.id } });
+  sendSuccess(res, null, "Category deleted.");
+}
+
 export const uploadLogo = uploadImage.single("logo");
 
 export async function uploadBusinessLogo(req: Request, res: Response) {

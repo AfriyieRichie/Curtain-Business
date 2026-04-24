@@ -40,4 +40,32 @@ router.post("/logo",
   ctrl.uploadBusinessLogo
 );
 
+// ── Material Categories ───────────────────────────────────────────────────────
+
+router.get("/material-categories", authGuard, ctrl.listCategories);
+
+router.post("/material-categories",
+  authGuard, rbacGuard("ADMIN"),
+  body("name").isString().notEmpty(),
+  body("description").optional().isString(),
+  validate,
+  ctrl.createCategory
+);
+
+router.patch("/material-categories/:id",
+  authGuard, rbacGuard("ADMIN"),
+  param("id").isString().notEmpty(),
+  body("name").optional().isString().notEmpty(),
+  body("description").optional().isString(),
+  validate,
+  ctrl.updateCategory
+);
+
+router.delete("/material-categories/:id",
+  authGuard, rbacGuard("ADMIN"),
+  param("id").isString().notEmpty(),
+  validate,
+  ctrl.deleteCategory
+);
+
 export default router;

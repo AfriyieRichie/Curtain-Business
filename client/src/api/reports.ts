@@ -32,6 +32,9 @@ export const reportsApi = {
   getAgedDebtors: () =>
     apiClient.get<ApiResponse<unknown>>("/reports/aged-debtors").then((r) => r.data),
 
+  getVat: (params?: { from?: string; to?: string }) =>
+    apiClient.get<ApiResponse<unknown>>("/reports/vat", { params }).then((r) => r.data),
+
   getCharts: () =>
     apiClient.get<ApiResponse<{
       revenueTrend: Array<{ month: string; revenueGhs: string }>;
