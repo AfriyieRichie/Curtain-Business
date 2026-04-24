@@ -124,11 +124,37 @@ function POItemsEditor({ items, onChange }: { items: ItemRow[]; onChange: (items
 
 // ── PO Create form ────────────────────────────────────────────────────────────
 
+function LandedCostFields({ freight, clearing, other, onChange }: {
+  freight: string; clearing: string; other: string;
+  onChange: (field: "freight" | "clearing" | "other", val: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-2">
+      <p className="text-xs font-semibold text-blue-700">Landed Costs (optional — distributed to unit costs on receipt)</p>
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="label text-xs">Freight (USD)</label>
+          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={freight} onChange={(e) => onChange("freight", e.target.value)} placeholder="0.00" />
+        </div>
+        <div>
+          <label className="label text-xs">Clearing (GHS)</label>
+          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={clearing} onChange={(e) => onChange("clearing", e.target.value)} placeholder="0.00" />
+        </div>
+        <div>
+          <label className="label text-xs">Other (GHS)</label>
+          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={other} onChange={(e) => onChange("other", e.target.value)} placeholder="0.00" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onSuccess: () => void; onCancel: () => void }) {
   const [supplierId, setSupplierId] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ materialId: "", orderedQty: 1, unitCostUsd: 0 }]);
+  const [landed, setLanded] = useState({ freight: "", clearing: "", other: "" });
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createPO({
@@ -136,6 +162,9 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
       items: items.map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })),
       expectedDate: expectedDate || undefined,
       notes: notes || undefined,
+      freightCostUsd: landed.freight || undefined,
+      clearingCostGhs: landed.clearing || undefined,
+      otherLandedGhs: landed.other || undefined,
     }),
     onSuccess: () => { toast.success("Purchase order created"); onSuccess(); },
     onError: (e: unknown) => {
@@ -161,6 +190,8 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
         </div>
       </div>
       <POItemsEditor items={items} onChange={setItems} />
+      <LandedCostFields freight={landed.freight} clearing={landed.clearing} other={landed.other}
+        onChange={(f, v) => setLanded((p) => ({ ...p, [f]: v }))} />
       <div>
         <label className="label">Notes</label>
         <textarea className="input resize-none" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -183,12 +214,20 @@ function EditPOForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess:
   const [items, setItems] = useState<ItemRow[]>(
     (po.items ?? []).map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCost) }))
   );
+  const [landed, setLanded] = useState({
+    freight: Number(po.freightCostUsd) > 0 ? po.freightCostUsd : "",
+    clearing: Number(po.clearingCostGhs) > 0 ? po.clearingCostGhs : "",
+    other: Number(po.otherLandedGhs) > 0 ? po.otherLandedGhs : "",
+  });
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.editPO(po.id, {
       expectedDate: expectedDate || undefined,
       notes: notes || undefined,
       items: items.map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })),
+      freightCostUsd: landed.freight || undefined,
+      clearingCostGhs: landed.clearing || undefined,
+      otherLandedGhs: landed.other || undefined,
     }),
     onSuccess: () => { toast.success("Purchase order updated"); onSuccess(); },
     onError: (e: unknown) => {
@@ -209,6 +248,8 @@ function EditPOForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess:
         </div>
       </div>
       <POItemsEditor items={items} onChange={setItems} />
+      <LandedCostFields freight={landed.freight} clearing={landed.clearing} other={landed.other}
+        onChange={(f, v) => setLanded((p) => ({ ...p, [f]: v }))} />
       <div>
         <label className="label">Notes</label>
         <textarea className="input resize-none" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -550,9 +591,22 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-200">
-                <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-gray-700">Total:</td>
+                <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-gray-700">Subtotal:</td>
                 <td className="pt-2 text-right font-mono font-bold">{fmtUsd(po.total)}</td>
               </tr>
+              {(Number(po.freightCostUsd) > 0 || Number(po.clearingCostGhs) > 0 || Number(po.otherLandedGhs) > 0) && (
+                <tr>
+                  <td colSpan={6} className="pt-2">
+                    <div className="rounded bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700 flex gap-4 flex-wrap">
+                      <span className="font-semibold">Landed Costs:</span>
+                      {Number(po.freightCostUsd) > 0 && <span>Freight: {fmtUsd(po.freightCostUsd)}</span>}
+                      {Number(po.clearingCostGhs) > 0 && <span>Clearing: {fmtGhs(po.clearingCostGhs)}</span>}
+                      {Number(po.otherLandedGhs) > 0 && <span>Other: {fmtGhs(po.otherLandedGhs)}</span>}
+                      <span className="text-blue-500">Distributed to unit costs on receipt</span>
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tfoot>
           </table>
         )}

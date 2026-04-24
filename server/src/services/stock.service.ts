@@ -103,7 +103,8 @@ export async function receiveGRN(
   grnNumber: string,
   exchangeRateAtReceipt: string,
   items: Array<{ poItemId: string; receivedQty: number; unitCostUsd: number }>,
-  userId: string
+  userId: string,
+  landedCosts?: { freightCostUsd: string; clearingCostGhs: string; otherLandedGhs: string }
 ) {
   return prisma.$transaction(async (tx) => {
     const rate = new Decimal(exchangeRateAtReceipt);
@@ -111,6 +112,20 @@ export async function receiveGRN(
       tx.businessSetting.findUnique({ where: { key: "currency.markupRatio" } }),
     ]);
     const markup = new Decimal(markupSetting?.value ?? "0.35");
+
+    // Calculate total landed cost in GHS to distribute proportionally
+    const freightGhs = landedCosts
+      ? new Decimal(landedCosts.freightCostUsd).mul(rate)
+      : new Decimal(0);
+    const clearingGhs = landedCosts ? new Decimal(landedCosts.clearingCostGhs) : new Decimal(0);
+    const otherGhs = landedCosts ? new Decimal(landedCosts.otherLandedGhs) : new Decimal(0);
+    const totalLandedGhs = freightGhs.plus(clearingGhs).plus(otherGhs);
+
+    // Pre-compute total GRN value in USD for proportional distribution
+    const totalGrnUsd = items.reduce(
+      (sum, i) => sum.plus(new Decimal(i.unitCostUsd).mul(new Decimal(i.receivedQty))),
+      new Decimal(0)
+    );
 
     // Create the GRN header
     const grn = await tx.goodsReceivedNote.create({
@@ -133,18 +148,32 @@ export async function receiveGRN(
 
       const receivedQty = new Decimal(item.receivedQty);
       const unitCostUsd = new Decimal(item.unitCostUsd);
+      const lineUsd = unitCostUsd.mul(receivedQty);
+
+      // Base GHS cost from exchange rate
+      const baseUnitCostGhs = recalcGHSCost(unitCostUsd, rate);
+
+      // Allocate landed costs proportionally by USD line value
+      const landedAllocationGhs = totalGrnUsd.gt(0) && totalLandedGhs.gt(0)
+        ? totalLandedGhs.mul(lineUsd).div(totalGrnUsd)
+        : new Decimal(0);
+      const landedPerUnitGhs = receivedQty.gt(0) ? landedAllocationGhs.div(receivedQty) : new Decimal(0);
+      const unitCostGhs = baseUnitCostGhs.plus(landedPerUnitGhs);
 
       // Weighted Average Cost: (existing_stock × existing_cost + received_qty × new_cost) ÷ total_qty
       const existingStock = new Decimal(poItem.material.currentStock.toString());
       const existingCostUsd = new Decimal(poItem.material.unitCostUsd.toString());
+      const existingCostGhs = new Decimal(poItem.material.unitCostGhs.toString());
       const totalQty = existingStock.plus(receivedQty);
       const avgCostUsd = totalQty.gt(0)
         ? existingStock.mul(existingCostUsd).plus(receivedQty.mul(unitCostUsd)).div(totalQty)
         : unitCostUsd;
-      const avgCostGhs = recalcGHSCost(avgCostUsd, rate);
+      // GHS WAC includes the landed cost allocation
+      const avgCostGhs = totalQty.gt(0)
+        ? existingStock.mul(existingCostGhs).plus(receivedQty.mul(unitCostGhs)).div(totalQty)
+        : unitCostGhs;
 
-      // GRN line records the actual received cost (not the average)
-      const unitCostGhs = recalcGHSCost(unitCostUsd, rate);
+      // GRN line records the actual received cost including landed allocation
       await tx.goodsReceivedItem.create({
         data: {
           grnId: grn.id,
@@ -156,7 +185,7 @@ export async function receiveGRN(
         },
       });
 
-      // Stock and material cost updated to weighted average
+      // Stock and material cost updated to weighted average (GHS WAC includes landed costs)
       await tx.material.update({
         where: { id: poItem.materialId },
         data: {
@@ -168,7 +197,7 @@ export async function receiveGRN(
         },
       });
 
-      // Record movement
+      // Record movement (unitCostGhs here includes the landed allocation)
       const movement = await tx.stockMovement.create({
         data: {
           materialId: poItem.materialId,

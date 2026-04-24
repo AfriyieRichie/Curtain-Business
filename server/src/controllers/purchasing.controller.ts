@@ -117,10 +117,13 @@ export async function getPO(req: Request, res: Response) {
 }
 
 export async function createPO(req: Request, res: Response) {
-  const { supplierId, expectedDate, notes, items } = req.body as {
+  const { supplierId, expectedDate, notes, items, freightCostUsd, clearingCostGhs, otherLandedGhs } = req.body as {
     supplierId: string;
     expectedDate?: string;
     notes?: string;
+    freightCostUsd?: string;
+    clearingCostGhs?: string;
+    otherLandedGhs?: string;
     items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>;
   };
 
@@ -137,6 +140,9 @@ export async function createPO(req: Request, res: Response) {
       orderDate: new Date(),
       subtotal,
       total: subtotal,
+      freightCostUsd: freightCostUsd ? new Decimal(freightCostUsd) : undefined,
+      clearingCostGhs: clearingCostGhs ? new Decimal(clearingCostGhs) : undefined,
+      otherLandedGhs: otherLandedGhs ? new Decimal(otherLandedGhs) : undefined,
       expectedDate: expectedDate ? new Date(expectedDate) : undefined,
       notes,
       createdById: req.auth!.userId,
@@ -216,14 +222,23 @@ export async function emailPO(req: Request, res: Response) {
 }
 
 export async function editPO(req: Request, res: Response) {
-  const { expectedDate, notes, items } = req.body as {
+  const { expectedDate, notes, items, freightCostUsd, clearingCostGhs, otherLandedGhs } = req.body as {
     expectedDate?: string;
     notes?: string;
+    freightCostUsd?: string;
+    clearingCostGhs?: string;
+    otherLandedGhs?: string;
     items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>;
   };
 
   const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: req.params.id } });
   if (po.status !== "DRAFT") throw new AppError(400, "Only DRAFT purchase orders can be edited.");
+
+  const landedData = {
+    ...(freightCostUsd !== undefined && { freightCostUsd: new Decimal(freightCostUsd) }),
+    ...(clearingCostGhs !== undefined && { clearingCostGhs: new Decimal(clearingCostGhs) }),
+    ...(otherLandedGhs !== undefined && { otherLandedGhs: new Decimal(otherLandedGhs) }),
+  };
 
   if (items && items.length > 0) {
     const subtotal = items.reduce(
@@ -237,6 +252,7 @@ export async function editPO(req: Request, res: Response) {
         data: {
           subtotal,
           total: subtotal,
+          ...landedData,
           ...(expectedDate !== undefined && { expectedDate: expectedDate ? new Date(expectedDate) : null }),
           ...(notes !== undefined && { notes }),
           items: {
@@ -259,6 +275,7 @@ export async function editPO(req: Request, res: Response) {
     const updated = await prisma.purchaseOrder.update({
       where: { id: po.id },
       data: {
+        ...landedData,
         ...(expectedDate !== undefined && { expectedDate: expectedDate ? new Date(expectedDate) : null }),
         ...(notes !== undefined && { notes }),
       },
@@ -291,9 +308,20 @@ export async function createGRN(req: Request, res: Response) {
   if (!rateRecord) throw new AppError(400, "No exchange rate configured.");
   const rate = exchangeRateAtReceipt ?? rateRecord.rate.toString();
 
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({
+    where: { id: req.params.id },
+    select: { freightCostUsd: true, clearingCostGhs: true, otherLandedGhs: true },
+  });
+
   const grnNumber = await nextDocNumber("GRN");
 
-  const result = await receiveGRN(req.params.id, grnNumber, rate, items, req.auth!.userId);
+  const landedCosts = {
+    freightCostUsd: po.freightCostUsd.toString(),
+    clearingCostGhs: po.clearingCostGhs.toString(),
+    otherLandedGhs: po.otherLandedGhs.toString(),
+  };
+
+  const result = await receiveGRN(req.params.id, grnNumber, rate, items, req.auth!.userId, landedCosts);
   sendSuccess(res, result, "GRN created. Stock updated.", 201);
 }
 

@@ -378,7 +378,6 @@ export async function generateGRNPDF(grnId: string): PDFBuffer {
     { label: "Total (GHS)", x: 510, width: 55, align: "right" },
   ]);
 
-  const rate = new Decimal(grn.exchangeRateAtReceipt.toString());
   let totalUsd = new Decimal(0);
   let totalGhs = new Decimal(0);
 
@@ -388,7 +387,7 @@ export async function generateGRNPDF(grnId: string): PDFBuffer {
     if (i % 2 === 1) doc.rect(50, rowY, 495, 16).fill("#f9fafb");
     doc.fillColor("#111827");
     const lineTotalUsd = new Decimal(item.unitCostUsd.toString()).mul(item.receivedQty.toString());
-    const lineTotalGhs = lineTotalUsd.mul(rate);
+    const lineTotalGhs = new Decimal(item.unitCostGhs.toString()).mul(item.receivedQty.toString());
     totalUsd = totalUsd.plus(lineTotalUsd);
     totalGhs = totalGhs.plus(lineTotalGhs);
 
@@ -412,9 +411,26 @@ export async function generateGRNPDF(grnId: string): PDFBuffer {
   doc.text("Total (GHS):", 360, doc.y, { width: 95, align: "right" });
   doc.text(`GHS ${totalGhs.toFixed(2)}`, 455, doc.y, { width: 85, align: "right" });
 
+  // Show landed cost breakdown if any
+  const freight = new Decimal(grn.po.freightCostUsd.toString());
+  const clearing = new Decimal(grn.po.clearingCostGhs.toString());
+  const other = new Decimal(grn.po.otherLandedGhs.toString());
+  if (freight.gt(0) || clearing.gt(0) || other.gt(0)) {
+    const rate = new Decimal(grn.exchangeRateAtReceipt.toString());
+    const landedTotal = freight.mul(rate).plus(clearing).plus(other);
+    doc.moveDown(0.5);
+    doc.font("Helvetica").fontSize(9).fillColor("#1d4ed8");
+    doc.text("Landed Costs (distributed to unit costs above):", 50, doc.y);
+    if (freight.gt(0)) doc.text(`  Freight: USD ${freight.toFixed(2)}`, { indent: 10 });
+    if (clearing.gt(0)) doc.text(`  Clearing: GHS ${clearing.toFixed(2)}`, { indent: 10 });
+    if (other.gt(0)) doc.text(`  Other: GHS ${other.toFixed(2)}`, { indent: 10 });
+    doc.text(`  Total Landed: GHS ${landedTotal.toFixed(2)}`, { indent: 10 });
+    doc.fillColor("#000000");
+  }
+
   doc.moveDown(1);
   doc.font("Helvetica").fontSize(8).fillColor("#6b7280");
-  doc.text("GHS totals calculated at the exchange rate stated above.", { align: "center" });
+  doc.text("GHS totals include landed cost allocation at the exchange rate stated above.", { align: "center" });
   doc.moveDown(0.5);
   const footer = settings["business.invoiceFooter"] ?? "Thank you for your business!";
   doc.fontSize(9).text(footer, { align: "center" });

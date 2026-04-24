@@ -64,6 +64,9 @@ router.post("/purchase-orders",
   body("items.*.unitCostUsd").customSanitizer((v) => Number(v)).isFloat({ min: 0 }).withMessage("Cost must be 0 or more"),
   body("expectedDate").optional({ values: "falsy" }).isISO8601(),
   body("notes").optional().isString(),
+  body("freightCostUsd").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("clearingCostGhs").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("otherLandedGhs").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   validate,
   ctrl.createPO
 );
@@ -87,6 +90,9 @@ router.patch("/purchase-orders/:id/edit",
   body("items.*.unitCostUsd").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   body("expectedDate").optional({ values: "falsy" }).isISO8601(),
   body("notes").optional().isString(),
+  body("freightCostUsd").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("clearingCostGhs").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("otherLandedGhs").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   validate,
   ctrl.editPO
 );

@@ -75,7 +75,7 @@ function SalesReport() {
 
 function ProfitabilityReport() {
   const { data, isLoading } = useQuery({ queryKey: ["report-profitability"], queryFn: () => reportsApi.getProfitability() });
-  const rows = data?.data as Array<{ jobCardId: string; orderNumber: string; revenueGhs: string; materialCostGhs: string; grossProfitGhs: string; marginPct: string }> | undefined;
+  const rows = data?.data as Array<{ jobCardId: string; orderNumber: string; revenueGhs: string; materialCostGhs: string; labourCostGhs: string; machineCostGhs: string; overheadCostGhs: string; totalProductionCostGhs: string; grossProfitGhs: string; marginPct: string }> | undefined;
 
   return isLoading ? <FullPageSpinner /> : (
     <div className="card p-0 overflow-hidden">
@@ -84,7 +84,11 @@ function ProfitabilityReport() {
           <tr>
             <th className="table-th">Order</th>
             <th className="table-th text-right">Revenue</th>
-            <th className="table-th text-right">Material Cost</th>
+            <th className="table-th text-right">Materials</th>
+            <th className="table-th text-right">Labour</th>
+            <th className="table-th text-right">Machine</th>
+            <th className="table-th text-right">Overhead</th>
+            <th className="table-th text-right">Total Cost</th>
             <th className="table-th text-right">Gross Profit</th>
             <th className="table-th text-right">Margin %</th>
           </tr>
@@ -95,6 +99,10 @@ function ProfitabilityReport() {
               <td className="table-td font-mono text-xs font-semibold text-violet-700">{r.orderNumber}</td>
               <td className="table-td text-right font-mono">{fmtGhs(r.revenueGhs)}</td>
               <td className="table-td text-right font-mono">{fmtGhs(r.materialCostGhs)}</td>
+              <td className="table-td text-right font-mono">{fmtGhs(r.labourCostGhs)}</td>
+              <td className="table-td text-right font-mono">{fmtGhs(r.machineCostGhs)}</td>
+              <td className="table-td text-right font-mono">{fmtGhs(r.overheadCostGhs)}</td>
+              <td className="table-td text-right font-mono font-medium">{fmtGhs(r.totalProductionCostGhs)}</td>
               <td className={`table-td text-right font-mono font-medium ${Number(r.grossProfitGhs) >= 0 ? "text-green-600" : "text-red-600"}`}>{fmtGhs(r.grossProfitGhs)}</td>
               <td className="table-td text-right">{Number(r.marginPct).toFixed(1)}%</td>
             </tr>

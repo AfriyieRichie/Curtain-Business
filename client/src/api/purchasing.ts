@@ -10,6 +10,9 @@ export interface PurchaseOrder {
   status: string;
   subtotal: string;
   total: string;
+  freightCostUsd: string;
+  clearingCostGhs: string;
+  otherLandedGhs: string;
   orderDate: string;
   expectedDate?: string;
   notes?: string;
@@ -67,13 +70,13 @@ export const purchasingApi = {
   getPO: (id: string) =>
     apiClient.get<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}`).then((r) => r.data),
 
-  createPO: (data: { supplierId: string; items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; expectedDate?: string; notes?: string }) =>
+  createPO: (data: { supplierId: string; items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; expectedDate?: string; notes?: string; freightCostUsd?: string; clearingCostGhs?: string; otherLandedGhs?: string }) =>
     apiClient.post<ApiResponse<PurchaseOrder>>("/purchasing/purchase-orders", data).then((r) => r.data),
 
   updatePO: (id: string, data: { status?: string; expectedDate?: string; notes?: string }) =>
     apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}`, data).then((r) => r.data),
 
-  editPO: (id: string, data: { expectedDate?: string; notes?: string; items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }> }) =>
+  editPO: (id: string, data: { expectedDate?: string; notes?: string; items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; freightCostUsd?: string; clearingCostGhs?: string; otherLandedGhs?: string }) =>
     apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}/edit`, data).then((r) => r.data),
 
   downloadPOPDF: (id: string, poNumber: string) =>

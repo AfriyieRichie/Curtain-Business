@@ -14,7 +14,7 @@ export const ordersApi = {
   generateJobCards: (id: string, assignedToId?: string) =>
     apiClient.post<ApiResponse<unknown[]>>(`/orders/${id}/job-cards`, { assignedToId }).then((r) => r.data),
 
-  updateJobCard: (orderId: string, jobCardId: string, data: { status?: string; assignedToId?: string; completedAt?: string }) =>
+  updateJobCard: (orderId: string, jobCardId: string, data: { status?: string; assignedToId?: string; completedAt?: string; labourCostGhs?: string; machineCostGhs?: string; overheadCostGhs?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/orders/${orderId}/job-cards/${jobCardId}`, data).then((r) => r.data),
 
   issueMaterial: (orderId: string, jobCardId: string, materialId: string) =>

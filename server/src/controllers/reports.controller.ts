@@ -113,8 +113,13 @@ export async function getProfitabilityReport(req: Request, res: Response) {
       return sum.plus(qty.mul(new Decimal(m.material.unitCostGhs.toString())));
     }, new Decimal(0));
 
+    const labourCost = new Decimal(jc.labourCostGhs.toString());
+    const machineCost = new Decimal(jc.machineCostGhs.toString());
+    const overheadCost = new Decimal(jc.overheadCostGhs.toString());
+    const totalProductionCost = materialCost.plus(labourCost).plus(machineCost).plus(overheadCost);
+
     const revenue = new Decimal(jc.order.totalGhs.toString());
-    const grossProfit = revenue.minus(materialCost);
+    const grossProfit = revenue.minus(totalProductionCost);
     const margin = revenue.gt(0) ? grossProfit.div(revenue).mul(100).toDecimalPlaces(2) : new Decimal(0);
 
     return {
@@ -122,6 +127,10 @@ export async function getProfitabilityReport(req: Request, res: Response) {
       orderNumber: jc.order.orderNumber,
       revenueGhs: revenue.toString(),
       materialCostGhs: materialCost.toString(),
+      labourCostGhs: labourCost.toString(),
+      machineCostGhs: machineCost.toString(),
+      overheadCostGhs: overheadCost.toString(),
+      totalProductionCostGhs: totalProductionCost.toString(),
       grossProfitGhs: grossProfit.toString(),
       marginPct: margin.toString(),
     };

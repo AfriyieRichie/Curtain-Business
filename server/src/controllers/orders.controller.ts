@@ -68,15 +68,26 @@ export async function getOrder(req: Request, res: Response) {
 // ── Update Status / Deposit ───────────────────────────────────────────────────
 
 export async function updateOrder(req: Request, res: Response) {
-  const { status, depositAmountGhs, notes } = req.body as {
-    status?: string; depositAmountGhs?: string; notes?: string;
+  const { status, depositAmount, notes } = req.body as {
+    status?: string; depositAmount?: string; notes?: string;
   };
+
+  let depositData: object = {};
+  if (depositAmount !== undefined) {
+    const current = await prisma.order.findUniqueOrThrow({ where: { id: req.params.id }, select: { totalGhs: true } });
+    const deposit = new Decimal(depositAmount);
+    const balance = new Decimal(current.totalGhs.toString()).minus(deposit);
+    depositData = {
+      depositAmountGhs: deposit,
+      balanceDueGhs: balance.gt(0) ? balance : new Decimal(0),
+    };
+  }
 
   const order = await prisma.order.update({
     where: { id: req.params.id },
     data: {
       ...(status && { status: status as never }),
-      ...(depositAmountGhs && { depositAmountGhs: new Decimal(depositAmountGhs) }),
+      ...depositData,
       ...(notes !== undefined && { notes }),
     },
   });
@@ -145,8 +156,9 @@ export async function generateJobCards(req: Request, res: Response) {
 // ── Job Card: update status ───────────────────────────────────────────────────
 
 export async function updateJobCard(req: Request, res: Response) {
-  const { status, assignedToId, completedAt } = req.body as {
+  const { status, assignedToId, completedAt, labourCostGhs, machineCostGhs, overheadCostGhs } = req.body as {
     status?: string; assignedToId?: string; completedAt?: string;
+    labourCostGhs?: string; machineCostGhs?: string; overheadCostGhs?: string;
   };
 
   const jc = await prisma.jobCard.update({
@@ -155,6 +167,9 @@ export async function updateJobCard(req: Request, res: Response) {
       ...(status && { status: status as never }),
       ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
       ...(completedAt && { completedAt: new Date(completedAt) }),
+      ...(labourCostGhs !== undefined && { labourCostGhs: new Decimal(labourCostGhs) }),
+      ...(machineCostGhs !== undefined && { machineCostGhs: new Decimal(machineCostGhs) }),
+      ...(overheadCostGhs !== undefined && { overheadCostGhs: new Decimal(overheadCostGhs) }),
     },
   });
 

@@ -51,6 +51,9 @@ router.patch("/:id/job-cards/:jobCardId",
   body("status").optional().isIn(["PENDING", "IN_PROGRESS", "COMPLETED", "ON_HOLD"]),
   body("assignedToId").optional().isUUID(),
   body("completedAt").optional().isISO8601(),
+  body("labourCostGhs").optional().isFloat({ min: 0 }),
+  body("machineCostGhs").optional().isFloat({ min: 0 }),
+  body("overheadCostGhs").optional().isFloat({ min: 0 }),
   validate,
   ctrl.updateJobCard
 );

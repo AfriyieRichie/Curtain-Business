@@ -238,19 +238,22 @@ model StockMovement {
 }
 
 model PurchaseOrder {
-  id             String   @id @default(uuid())
-  poNumber       String   @unique @map("po_number")
-  supplierId     String   @map("supplier_id")
-  poCurrency     Currency @default(USD) @map("po_currency")
-  status         POStatus @default(DRAFT)
-  orderDate      DateTime @map("order_date")
-  expectedDate   DateTime? @map("expected_date")
-  notes          String?
-  subtotal       Decimal  @default(0) @db.Decimal(18, 4)
-  total          Decimal  @default(0) @db.Decimal(18, 4)
-  createdById    String   @map("created_by")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
+  poNumber         String   @unique @map("po_number")
+  supplierId       String   @map("supplier_id")
+  poCurrency       Currency @default(USD) @map("po_currency")
+  status           POStatus @default(DRAFT)
+  orderDate        DateTime @map("order_date")
+  expectedDate     DateTime? @map("expected_date")
+  notes            String?
+  subtotal         Decimal  @default(0) @db.Decimal(18, 4)
+  total            Decimal  @default(0) @db.Decimal(18, 4)
+  freightCostUsd   Decimal  @default(0) @map("freight_cost_usd")  @db.Decimal(18, 4)
+  clearingCostGhs  Decimal  @default(0) @map("clearing_cost_ghs") @db.Decimal(18, 4)
+  otherLandedGhs   Decimal  @default(0) @map("other_landed_ghs")  @db.Decimal(18, 4)
+  createdById      String   @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   supplier  Supplier           @relation(fields: [supplierId], references: [id])
   createdBy User               @relation(fields: [createdById], references: [id])
@@ -517,17 +520,20 @@ model OrderItem {
 }
 
 model JobCard {
-  id           String    @id @default(uuid())
-  orderId      String    @map("order_id")
-  jobNumber    String    @unique @map("job_number")
-  assignedToId String?   @map("assigned_to")
-  status       JobStatus @default(PENDING)
-  startedAt    DateTime? @map("started_at")
-  completedAt  DateTime? @map("completed_at")
-  notes        String?
+  id              String    @id @default(uuid())
+  orderId         String    @map("order_id")
+  jobNumber       String    @unique @map("job_number")
+  assignedToId    String?   @map("assigned_to")
+  status          JobStatus @default(PENDING)
+  startedAt       DateTime? @map("started_at")
+  completedAt     DateTime? @map("completed_at")
+  labourCostGhs   Decimal   @default(0) @map("labour_cost_ghs")   @db.Decimal(18, 4)
+  machineCostGhs  Decimal   @default(0) @map("machine_cost_ghs")  @db.Decimal(18, 4)
+  overheadCostGhs Decimal   @default(0) @map("overhead_cost_ghs") @db.Decimal(18, 4)
+  notes           String?
 
-  order      Order           @relation(fields: [orderId], references: [id])
-  assignedTo User?           @relation(fields: [assignedToId], references: [id])
+  order      Order             @relation(fields: [orderId], references: [id])
+  assignedTo User?             @relation(fields: [assignedToId], references: [id])
   materials  JobCardMaterial[]
 
   @@index([orderId])
