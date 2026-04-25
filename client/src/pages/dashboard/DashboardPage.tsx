@@ -15,17 +15,15 @@ interface KPICardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  color: string;
   link?: string;
   alert?: boolean;
 }
 
-function KPICard({ title, value, icon: Icon, color, link, alert }: KPICardProps) {
+function KPICard({ title, value, icon: Icon, link, alert }: KPICardProps) {
+  const isAlert = alert && Number(value) > 0;
   const inner = (
-    <div className={`card flex items-center gap-4 ${alert && Number(value) > 0 ? "border-amber-300 bg-amber-50" : ""}`}>
-      <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl ${color}`}>
-        <Icon size={22} className="text-white" />
-      </div>
+    <div className={`card flex items-center gap-4 ${isAlert ? "border-amber-200 bg-amber-50" : ""}`}>
+      <Icon size={20} className={`flex-shrink-0 ${isAlert ? "text-amber-500" : "text-gray-400"}`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-gray-500">{title}</p>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
@@ -67,50 +65,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <KPICard
-          title="Total Customers"
-          value={kpis?.totalCustomers ?? "—"}
-          icon={Users}
-          color="bg-blue-500"
-          link="/customers"
-        />
-        <KPICard
-          title="Active Orders"
-          value={kpis?.activeOrders ?? "—"}
-          icon={ClipboardList}
-          color="bg-violet-500"
-          link="/orders"
-        />
-        <KPICard
-          title="Revenue This Month"
-          value={kpis ? fmtGhs(kpis.monthlyRevenueGhs) : "—"}
-          icon={TrendingUp}
-          color="bg-green-500"
-          link="/reports"
-        />
-        <KPICard
-          title="Low Stock Items"
-          value={kpis?.lowStockCount ?? "—"}
-          icon={AlertTriangle}
-          color="bg-amber-500"
-          link="/inventory?lowStock=true"
-          alert
-        />
-        <KPICard
-          title="Outstanding Balance"
-          value={kpis ? fmtGhs(kpis.totalOutstandingGhs) : "—"}
-          icon={Receipt}
-          color="bg-red-500"
-          link="/invoices"
-          alert
-        />
-        <KPICard
-          title="Pending Job Cards"
-          value={kpis?.pendingJobCards ?? "—"}
-          icon={Wrench}
-          color="bg-indigo-500"
-          link="/production"
-        />
+        <KPICard title="Total Customers"      value={kpis?.totalCustomers ?? "—"}          icon={Users}          link="/customers" />
+        <KPICard title="Active Orders"         value={kpis?.activeOrders ?? "—"}            icon={ClipboardList}  link="/orders" />
+        <KPICard title="Revenue This Month"    value={kpis ? fmtGhs(kpis.monthlyRevenueGhs) : "—"} icon={TrendingUp} link="/reports" />
+        <KPICard title="Low Stock Items"       value={kpis?.lowStockCount ?? "—"}           icon={AlertTriangle}  link="/inventory?lowStock=true" alert />
+        <KPICard title="Outstanding Balance"   value={kpis ? fmtGhs(kpis.totalOutstandingGhs) : "—"} icon={Receipt} link="/invoices" alert />
+        <KPICard title="Pending Job Cards"     value={kpis?.pendingJobCards ?? "—"}         icon={Wrench}         link="/production" />
       </div>
 
       {/* Charts row */}
@@ -170,18 +130,18 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-base font-semibold text-gray-900">Quick Actions</h2>
           <div className="space-y-2">
             {[
-              { label: "New Quote", to: "/quotes?new=1", color: "text-violet-600" },
-              { label: "New Purchase Order", to: "/purchasing?tab=po&new=1", color: "text-blue-600" },
-              { label: "Record Payment", to: "/invoices", color: "text-green-600" },
-              { label: "Update Exchange Rate", to: "/settings?tab=currency", color: "text-amber-600" },
+              { label: "New Quote", to: "/quotes?new=1" },
+              { label: "New Purchase Order", to: "/purchasing?tab=po&new=1" },
+              { label: "Record Payment", to: "/invoices" },
+              { label: "Update Exchange Rate", to: "/settings?tab=currency" },
             ].map((a) => (
               <Link
                 key={a.to}
                 to={a.to}
-                className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium hover:bg-gray-50 ${a.color}`}
+                className="flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
               >
                 {a.label}
-                <ArrowRight size={14} />
+                <ArrowRight size={14} className="text-gray-400" />
               </Link>
             ))}
           </div>
