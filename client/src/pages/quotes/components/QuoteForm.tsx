@@ -28,6 +28,7 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineItem[]>([newLine()]);
   const [calculating, setCalculating] = useState<number | null>(null);
+  const [discountRate, setDiscountRate] = useState<string>("");
 
   const { data: customers } = useQuery({ queryKey: ["customers-mini"], queryFn: () => customersApi.list({ limit: 200 }), staleTime: 5 * 60_000 });
   const { data: typesData } = useQuery({ queryKey: ["curtain-types"], queryFn: bomApi.getCurtainTypes, staleTime: 5 * 60_000 });
@@ -38,9 +39,18 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
   const templates = templatesData?.data ?? [];
   const materials = materialsData?.data ?? [];
 
+  const lineSubtotal = lines.reduce((sum, l) => {
+    const price = parseFloat(l._calcedPrice ?? "0") || 0;
+    return sum + price * (l.quantity || 1);
+  }, 0);
+  const discountPct = parseFloat(discountRate) || 0;
+  const discountAmt = lineSubtotal * discountPct / 100;
+  const grandTotal = lineSubtotal - discountAmt;
+
   const { mutate: submit, isPending } = useMutation({
     mutationFn: () => quotesApi.create({
       customerId,
+      discountRate: discountPct > 0 ? discountPct : undefined,
       validUntil: validUntil || undefined,
       notes: notes || undefined,
       items: lines.map(({ _key, _calcedPrice, _breakdown, _hasLining, ...item }) => ({ ...item, unitPriceGhs: _calcedPrice || undefined })),
@@ -213,6 +223,36 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
               )}
             </div>
           ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Subtotal</span>
+          <span className="font-mono text-gray-700">GHS {lineSubtotal.toFixed(2)}</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-gray-500 flex-shrink-0">Discount</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step="0.1"
+              placeholder="0"
+              className="input w-20 text-right py-1"
+              value={discountRate}
+              onChange={(e) => setDiscountRate(e.target.value)}
+            />
+            <span className="text-sm text-gray-500">%</span>
+          </div>
+          <span className="font-mono text-sm text-red-600 ml-auto">
+            {discountPct > 0 ? `− GHS ${discountAmt.toFixed(2)}` : "—"}
+          </span>
+        </div>
+        <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+          <span className="font-semibold text-gray-800">Total</span>
+          <span className="font-mono font-bold text-gray-900 text-base">GHS {grandTotal.toFixed(2)}</span>
         </div>
       </div>
 

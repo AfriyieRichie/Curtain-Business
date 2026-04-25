@@ -18,6 +18,7 @@ export interface CreateQuoteItem {
 
 export interface CreateQuotePayload {
   customerId: string;
+  discountRate?: number;
   validUntil?: string;
   notes?: string;
   items: CreateQuoteItem[];

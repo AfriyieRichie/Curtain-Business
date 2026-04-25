@@ -70,8 +70,9 @@ export async function getSalesReport(req: Request, res: Response) {
       totalGhs: acc.totalGhs.plus(new Decimal(inv.totalGhs.toString())),
       totalPaid: acc.totalPaid.plus(new Decimal(inv.amountPaidGhs.toString())),
       totalOutstanding: acc.totalOutstanding.plus(new Decimal(inv.balanceGhs.toString())),
+      totalDiscountGhs: acc.totalDiscountGhs.plus(new Decimal(inv.discountAmountGhs.toString())),
     }),
-    { totalGhs: new Decimal(0), totalPaid: new Decimal(0), totalOutstanding: new Decimal(0) }
+    { totalGhs: new Decimal(0), totalPaid: new Decimal(0), totalOutstanding: new Decimal(0), totalDiscountGhs: new Decimal(0) }
   );
 
   sendSuccess(res, {
@@ -79,6 +80,7 @@ export async function getSalesReport(req: Request, res: Response) {
       totalGhs: totals.totalGhs.toString(),
       totalPaid: totals.totalPaid.toString(),
       totalOutstanding: totals.totalOutstanding.toString(),
+      totalDiscountGhs: totals.totalDiscountGhs.toString(),
     },
     invoices,
   });

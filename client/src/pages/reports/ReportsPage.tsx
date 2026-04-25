@@ -20,7 +20,7 @@ function SalesReport() {
     queryKey: ["report-sales", from, to],
     queryFn: () => reportsApi.getSales({ from: from || undefined, to: to || undefined }),
   });
-  const report = data?.data as { totals: { totalGhs: string; totalPaid: string; totalOutstanding: string }; invoices: Array<{ id: string; invoiceNumber: string; customer?: { name: string }; totalGhs: string; amountPaidGhs: string; balanceGhs: string; createdAt: string }> } | undefined;
+  const report = data?.data as { totals: { totalGhs: string; totalPaid: string; totalOutstanding: string; totalDiscountGhs: string }; invoices: Array<{ id: string; invoiceNumber: string; customer?: { name: string }; totalGhs: string; discountAmountGhs: string; amountPaidGhs: string; balanceGhs: string; createdAt: string }> } | undefined;
 
   return (
     <div className="space-y-4">
@@ -31,11 +31,11 @@ function SalesReport() {
       </div>
       {isLoading ? <FullPageSpinner /> : report && (
         <>
-          <div className="grid grid-cols-3 gap-4">
-            {[["Total Revenue", report.totals.totalGhs], ["Total Collected", report.totals.totalPaid], ["Outstanding", report.totals.totalOutstanding]].map(([label, val]) => (
+          <div className="grid grid-cols-4 gap-4">
+            {([["Total Revenue", report.totals.totalGhs, ""], ["Total Collected", report.totals.totalPaid, "text-green-600"], ["Outstanding", report.totals.totalOutstanding, "text-red-600"], ["Discounts Given", report.totals.totalDiscountGhs, "text-orange-500"]] as [string, string, string][]).map(([label, val, cls]) => (
               <div key={label} className="card text-center">
                 <p className="text-sm text-gray-500">{label}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{fmtGhs(val)}</p>
+                <p className={`text-xl font-bold mt-1 ${cls || "text-gray-900"}`}>{fmtGhs(val)}</p>
               </div>
             ))}
           </div>
@@ -46,6 +46,7 @@ function SalesReport() {
                   <th className="table-th">Invoice #</th>
                   <th className="table-th">Customer</th>
                   <th className="table-th text-right">Total</th>
+                  <th className="table-th text-right">Discount</th>
                   <th className="table-th text-right">Paid</th>
                   <th className="table-th text-right">Balance</th>
                   <th className="table-th">Date</th>
@@ -57,6 +58,7 @@ function SalesReport() {
                     <td className="table-td font-mono text-xs font-semibold text-violet-700">{inv.invoiceNumber}</td>
                     <td className="table-td">{inv.customer?.name ?? "—"}</td>
                     <td className="table-td text-right font-mono">{fmtGhs(inv.totalGhs)}</td>
+                    <td className="table-td text-right font-mono text-orange-500">{Number(inv.discountAmountGhs) > 0 ? fmtGhs(inv.discountAmountGhs) : "—"}</td>
                     <td className="table-td text-right font-mono text-green-600">{fmtGhs(inv.amountPaidGhs)}</td>
                     <td className="table-td text-right font-mono text-red-600">{fmtGhs(inv.balanceGhs)}</td>
                     <td className="table-td text-gray-500">{formatDate(inv.createdAt)}</td>

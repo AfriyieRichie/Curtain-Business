@@ -64,6 +64,7 @@ export async function getQuote(req: Request, res: Response) {
 export async function createQuote(req: Request, res: Response) {
   const body = req.body as {
     customerId: string;
+    discountRate?: number;
     validUntil?: string;
     notes?: string;
     items: Array<{
@@ -186,13 +187,19 @@ export async function createQuote(req: Request, res: Response) {
       })
     );
 
+    const subtotalGhs = totalGhs;
+    const discountRate = body.discountRate ?? 0;
+    const discountAmountGhs = subtotalGhs.mul(discountRate).div(100).toDecimalPlaces(2);
+    const finalTotalGhs = subtotalGhs.minus(discountAmountGhs);
+
     return tx.quote.create({
       data: {
         quoteNumber,
         customerId: body.customerId,
         exchangeRateSnapshot: rate,
-        subtotalGhs: totalGhs,
-        totalGhs,
+        subtotalGhs,
+        discountAmountGhs,
+        totalGhs: finalTotalGhs,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         notes: body.notes,
         createdById: req.auth!.userId,
@@ -257,7 +264,8 @@ export async function convertToOrder(req: Request, res: Response) {
         customerId: quote.customerId,
         quoteId: quote.id,
         exchangeRateSnapshot: rate,
-        subtotalGhs: quote.totalGhs,
+        subtotalGhs: quote.subtotalGhs,
+        discountAmountGhs: quote.discountAmountGhs,
         totalGhs: quote.totalGhs,
         depositAmountGhs: deposit,
         balanceDueGhs: balance.gt(0) ? balance : new Decimal(0),
