@@ -176,9 +176,15 @@ export async function postLandedCostEntry(lceId: string, userId: string) {
           data: { unitCostGhs: new Decimal(item.unitCostGhs.toString()).plus(landedPerUnit) },
         });
 
-        // Adjust material WAC: add landed cost per unit to current weighted average
+        // Adjust material WAC correctly: spread this item's total landed GHS
+        // across ALL units currently in stock, not just the GRN qty.
+        // WAC formula: currentCost + (itemLandedGhs / currentStock)
+        const currentStock = new Decimal(item.material.currentStock.toString());
         const currentCostGhs = new Decimal(item.material.unitCostGhs.toString());
-        const newUnitCostGhs = currentCostGhs.plus(landedPerUnit);
+        const landedPerWacUnit = currentStock.gt(0)
+          ? itemLandedGhs.div(currentStock)
+          : landedPerUnit;
+        const newUnitCostGhs = currentCostGhs.plus(landedPerWacUnit);
         await tx.material.update({
           where: { id: item.materialId },
           data: {
