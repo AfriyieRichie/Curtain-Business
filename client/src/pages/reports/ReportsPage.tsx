@@ -5,7 +5,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 import { formatDate } from "@/lib/formatters";
 
-type Tab = "sales" | "profitability" | "inventory" | "stock-movements" | "aged-debtors" | "vat";
+type Tab = "sales" | "profitability" | "inventory" | "stock-movements" | "aged-debtors" | "vat" | "variance";
 
 function fmtGhs(v: string | number) {
   return `GHS ${Number(v).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -286,6 +286,114 @@ function VatReport() {
   );
 }
 
+// ── Variance Analysis ─────────────────────────────────────────────────────────
+
+interface VarianceRow {
+  jobCardId: string; jobNumber: string; orderNumber: string; windowLabel: string;
+  completedAt: string; standardLabourHours: string;
+  stdMaterialCost: string; stdLabourCost: string; stdOverheadCost: string; stdTotalCost: string;
+  actMaterialCost: string; actLabourCost: string; actOverheadCost: string; actTotalCost: string;
+  materialVariance: string; labourVariance: string; overheadVariance: string; totalVariance: string;
+}
+interface VarianceReport {
+  summary: { stdTotalCost: string; actTotalCost: string; totalVariance: string };
+  rows: VarianceRow[];
+}
+
+function varianceBadge(v: string) {
+  const n = Number(v);
+  if (Math.abs(n) < 0.01) return <span className="text-gray-400 font-mono text-xs">—</span>;
+  const cls = n > 0 ? "text-red-600" : "text-emerald-600";
+  return <span className={`font-mono text-xs font-semibold ${cls}`}>{n > 0 ? "+" : ""}{fmtGhs(v)}</span>;
+}
+
+function VarianceReport() {
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["report-variance", from, to],
+    queryFn: () => reportsApi.getVariance({ from: from || undefined, to: to || undefined }),
+  });
+  const report = data?.data as VarianceReport | undefined;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+        <strong>Standard Costing Variance</strong> — compares the estimated cost (from BOM template at order time)
+        against the actual cost recorded on completed job cards.
+        Positive variance = over standard (unfavourable). Negative = under standard (favourable).
+      </div>
+
+      <div className="flex gap-3 flex-wrap items-end">
+        <div><label className="label">From</label><input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+        <div><label className="label">To</label><input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <button onClick={() => refetch()} className="btn-secondary">Apply</button>
+      </div>
+
+      {isLoading ? <FullPageSpinner /> : report && (
+        <>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              ["Total Standard Cost", report.summary.stdTotalCost, "text-gray-900"],
+              ["Total Actual Cost", report.summary.actTotalCost, "text-gray-900"],
+              ["Total Variance", report.summary.totalVariance, Number(report.summary.totalVariance) > 0 ? "text-red-600" : "text-emerald-600"],
+            ].map(([label, val, cls]) => (
+              <div key={label as string} className="card text-center">
+                <p className="text-sm text-gray-500">{label as string}</p>
+                <p className={`text-xl font-bold mt-1 ${cls as string}`}>{fmtGhs(val as string)}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="card p-0 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="table-th">Job #</th>
+                  <th className="table-th">Order #</th>
+                  <th className="table-th">Window</th>
+                  <th className="table-th">Std Hrs</th>
+                  <th className="table-th text-right">Std Material</th>
+                  <th className="table-th text-right">Std Labour</th>
+                  <th className="table-th text-right">Std O/H</th>
+                  <th className="table-th text-right">Std Total</th>
+                  <th className="table-th text-right">Act Total</th>
+                  <th className="table-th text-right">Mat Var</th>
+                  <th className="table-th text-right">Lab Var</th>
+                  <th className="table-th text-right">O/H Var</th>
+                  <th className="table-th text-right font-semibold">Total Var</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {report.rows.length === 0 ? (
+                  <tr><td colSpan={13} className="table-td text-center text-gray-400">No completed job cards in this period</td></tr>
+                ) : report.rows.map((r) => (
+                  <tr key={r.jobCardId} className="hover:bg-gray-50">
+                    <td className="table-td font-mono text-xs text-violet-700">{r.jobNumber}</td>
+                    <td className="table-td font-mono text-xs">{r.orderNumber}</td>
+                    <td className="table-td text-xs">{r.windowLabel}</td>
+                    <td className="table-td font-mono text-xs text-center">{r.standardLabourHours}</td>
+                    <td className="table-td text-right font-mono text-xs">{fmtGhs(r.stdMaterialCost)}</td>
+                    <td className="table-td text-right font-mono text-xs">{fmtGhs(r.stdLabourCost)}</td>
+                    <td className="table-td text-right font-mono text-xs">{fmtGhs(r.stdOverheadCost)}</td>
+                    <td className="table-td text-right font-mono text-xs font-semibold">{fmtGhs(r.stdTotalCost)}</td>
+                    <td className="table-td text-right font-mono text-xs font-semibold">{fmtGhs(r.actTotalCost)}</td>
+                    <td className="table-td text-right">{varianceBadge(r.materialVariance)}</td>
+                    <td className="table-td text-right">{varianceBadge(r.labourVariance)}</td>
+                    <td className="table-td text-right">{varianceBadge(r.overheadVariance)}</td>
+                    <td className="table-td text-right">{varianceBadge(r.totalVariance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const tabs: { key: Tab; label: string }[] = [
@@ -294,6 +402,7 @@ const tabs: { key: Tab; label: string }[] = [
   { key: "inventory", label: "Inventory Valuation" },
   { key: "aged-debtors", label: "Aged Debtors" },
   { key: "vat", label: "VAT Report" },
+  { key: "variance", label: "Variance Analysis" },
 ];
 
 export default function ReportsPage() {
@@ -317,6 +426,7 @@ export default function ReportsPage() {
       {tab === "inventory" && <InventoryReport />}
       {tab === "aged-debtors" && <AgedDebtorsReport />}
       {tab === "vat" && <VatReport />}
+      {tab === "variance" && <VarianceReport />}
     </div>
   );
 }

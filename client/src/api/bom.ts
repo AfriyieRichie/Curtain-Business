@@ -12,7 +12,7 @@ export interface BOMCalculateRequest {
 }
 
 export interface BOMItemPayload { materialId: string; quantityFormula: string; role?: BOMLineRole; notes?: string; sortOrder?: number; }
-export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; labourHours?: number; overheadGhs?: number; items: BOMItemPayload[]; }
+export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; labourHoursFormula?: string; overheadGhs?: number; items: BOMItemPayload[]; }
 
 export interface BOMCalculateResult {
   lines: Array<{ materialId: string; material: { code: string; name: string; unit: string }; quantity: number; lineCostGhs: string }>;

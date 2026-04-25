@@ -307,6 +307,117 @@ export async function getVatReport(req: Request, res: Response) {
   });
 }
 
+// ── Variance Analysis ─────────────────────────────────────────────────────────
+
+export async function getVarianceReport(req: Request, res: Response) {
+  const { from, to } = req.query as Record<string, string>;
+  const dateFilter = {
+    ...(from && { gte: new Date(from) }),
+    ...(to && { lte: new Date(to) }),
+  };
+
+  const [labourRateSetting, overheadRateSetting] = await Promise.all([
+    prisma.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } }),
+    prisma.businessSetting.findUnique({ where: { key: "production.overheadRateGhs" } }),
+  ]);
+  const labourRate = new Decimal(labourRateSetting?.value ?? "0");
+  const overheadRate = new Decimal(overheadRateSetting?.value ?? "0");
+
+  const jobCards = await prisma.jobCard.findMany({
+    where: {
+      status: "COMPLETED",
+      ...(Object.keys(dateFilter).length && { completedAt: dateFilter }),
+    },
+    include: {
+      order: {
+        select: {
+          orderNumber: true,
+          items: { select: { id: true, windowLabel: true, lineCostGhs: true } },
+        },
+      },
+      materials: {
+        where: { isIssued: true },
+        include: { material: { select: { unitCostGhs: true } } },
+      },
+    },
+    orderBy: { completedAt: "desc" },
+  });
+
+  const rows = jobCards.map((jc) => {
+    // Standard costs
+    const orderItem = jc.orderItemId
+      ? jc.order.items.find((i) => i.id === jc.orderItemId)
+      : jc.order.items[0]; // fallback for legacy job cards without orderItemId
+
+    const stdMaterialCost = orderItem
+      ? new Decimal(orderItem.lineCostGhs.toString())
+      : new Decimal(0);
+
+    const stdLabourHours = new Decimal(jc.standardLabourHours.toString());
+    const stdLabourCost = stdLabourHours.mul(labourRate);
+    const stdOverheadCost = stdLabourHours.mul(overheadRate);
+    const stdTotalCost = stdMaterialCost.plus(stdLabourCost).plus(stdOverheadCost);
+
+    // Actual costs
+    const actMaterialCost = jc.materials.reduce((sum, m) => {
+      const qty = new Decimal(m.issuedQty.toString());
+      return sum.plus(qty.mul(new Decimal(m.material.unitCostGhs.toString())));
+    }, new Decimal(0));
+    const actLabourCost = new Decimal(jc.labourCostGhs.toString());
+    const actOverheadCost = new Decimal(jc.overheadCostGhs.toString());
+    const actTotalCost = actMaterialCost.plus(actLabourCost).plus(actOverheadCost);
+
+    // Variances (positive = over standard / unfavourable)
+    const materialVariance = actMaterialCost.minus(stdMaterialCost);
+    const labourVariance = actLabourCost.minus(stdLabourCost);
+    const overheadVariance = actOverheadCost.minus(stdOverheadCost);
+    const totalVariance = actTotalCost.minus(stdTotalCost);
+
+    return {
+      jobCardId: jc.id,
+      jobNumber: jc.jobNumber,
+      orderNumber: jc.order.orderNumber,
+      windowLabel: orderItem?.windowLabel ?? "—",
+      completedAt: jc.completedAt,
+      standardLabourHours: stdLabourHours.toFixed(2),
+      // Standard
+      stdMaterialCost: stdMaterialCost.toFixed(4),
+      stdLabourCost: stdLabourCost.toFixed(4),
+      stdOverheadCost: stdOverheadCost.toFixed(4),
+      stdTotalCost: stdTotalCost.toFixed(4),
+      // Actual
+      actMaterialCost: actMaterialCost.toFixed(4),
+      actLabourCost: actLabourCost.toFixed(4),
+      actOverheadCost: actOverheadCost.toFixed(4),
+      actTotalCost: actTotalCost.toFixed(4),
+      // Variance
+      materialVariance: materialVariance.toFixed(4),
+      labourVariance: labourVariance.toFixed(4),
+      overheadVariance: overheadVariance.toFixed(4),
+      totalVariance: totalVariance.toFixed(4),
+    };
+  });
+
+  // Summary totals
+  const summary = rows.reduce(
+    (acc, r) => ({
+      stdTotal: acc.stdTotal.plus(r.stdTotalCost),
+      actTotal: acc.actTotal.plus(r.actTotalCost),
+      totalVariance: acc.totalVariance.plus(r.totalVariance),
+    }),
+    { stdTotal: new Decimal(0), actTotal: new Decimal(0), totalVariance: new Decimal(0) }
+  );
+
+  sendSuccess(res, {
+    summary: {
+      stdTotalCost: summary.stdTotal.toFixed(4),
+      actTotalCost: summary.actTotal.toFixed(4),
+      totalVariance: summary.totalVariance.toFixed(4),
+    },
+    rows,
+  });
+}
+
 // ── Aged Debtors ──────────────────────────────────────────────────────────────
 
 export async function getAgedDebtors(_req: Request, res: Response) {

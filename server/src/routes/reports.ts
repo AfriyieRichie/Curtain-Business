@@ -63,4 +63,12 @@ router.get("/vat",
   ctrl.getVatReport
 );
 
+router.get("/variance",
+  authGuard, rbacGuard("ACCOUNTS"),
+  query("from").optional().isISO8601(),
+  query("to").optional().isISO8601(),
+  validate,
+  ctrl.getVarianceReport
+);
+
 export default router;

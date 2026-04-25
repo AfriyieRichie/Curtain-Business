@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, FileText, Calculator, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -11,6 +11,7 @@ import Spinner from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
 import Modal from "@/components/ui/Modal";
 import type { BOMTemplate, CurtainType } from "@/types";
+import { evaluateFormula } from "@/lib/bom-engine";
 
 type Tab = "templates" | "curtain-types" | "calculator";
 
@@ -195,6 +196,41 @@ function FormulaBuilder({ value, onChange }: { value: string; onChange: (v: stri
   );
 }
 
+// ── Labour Formula Preview ────────────────────────────────────────────────────
+
+const SAMPLE_DIMS = [
+  { label: "Small (100×200cm)", widthCm: 100, dropCm: 200 },
+  { label: "Medium (200×230cm)", widthCm: 200, dropCm: 230 },
+  { label: "Large (350×260cm)", widthCm: 350, dropCm: 260 },
+];
+
+function LabourFormulaPreview({ formula }: { formula: string }) {
+  const previews = useMemo(() => {
+    if (!formula.trim()) return null;
+    return SAMPLE_DIMS.map((d) => {
+      const { quantity, error } = evaluateFormula(formula, {
+        widthCm: d.widthCm, dropCm: d.dropCm, fullnessRatio: 2.5, fabricWidthCm: 140,
+      });
+      return { label: d.label, hours: error ? "error" : quantity.toFixed(2), error: !!error };
+    });
+  }, [formula]);
+
+  if (!previews) return <p className="text-xs text-amber-600 mt-0.5">Enter a formula or plain number (e.g. <code>2</code> or <code>1 + width_m * 0.4</code>)</p>;
+
+  const hasError = previews.some((p) => p.error);
+  return (
+    <div className={`mt-1 rounded text-xs px-2 py-1.5 ${hasError ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-700"}`}>
+      {hasError ? "Invalid formula" : (
+        <span className="flex flex-wrap gap-3">
+          {previews.map((p) => (
+            <span key={p.label}><span className="text-emerald-500">{p.label}:</span> <strong>{p.hours} hrs</strong></span>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ── BOM Template Form ─────────────────────────────────────────────────────────
 
 let itemKey = 0;
@@ -220,7 +256,9 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
   const [curtainTypeId, setCurtainTypeId] = useState(template?.curtainTypeId ?? "");
   const [description, setDescription] = useState(template?.description ?? "");
   const [fullness, setFullness] = useState(template?.defaultFullnessRatio ?? "2.5");
-  const [labourHours, setLabourHours] = useState(template ? String(Number(template.labourHours) || "") : "");
+  const [labourHoursFormula, setLabourHoursFormula] = useState(
+    template?.labourHoursFormula ?? (template ? String(Number(template.labourHours) || "") : "")
+  );
   const [overheadGhs, setOverheadGhs] = useState(template ? String(Number(template.overheadGhs) || "") : "");
   const [items, setItems] = useState<(BOMItemPayload & { _key: number })[]>(
     template?.items?.map((i, idx) => ({ _key: ++itemKey, materialId: i.materialId, quantityFormula: i.quantityFormula, role: i.role ?? "FIXED", notes: i.notes ?? "", sortOrder: idx })) ?? [newItem()]
@@ -235,7 +273,7 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
         curtainTypeId, name,
         description: description || undefined,
         defaultFullnessRatio: fullness,
-        labourHours: labourHours ? Number(labourHours) : 0,
+        labourHoursFormula: labourHoursFormula || "0",
         overheadGhs: overheadGhs ? Number(overheadGhs) : 0,
         items: items.map(({ _key, ...i }) => i),
       };
@@ -282,10 +320,14 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
         <p className="text-xs font-semibold text-amber-800">Production Time <span className="font-normal text-amber-600">— labour &amp; overhead rates are configured globally in Settings</span></p>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label text-xs">Labour Hours per Panel</label>
-            <input className="input py-1.5 text-sm" type="number" min="0" step="0.25" value={labourHours}
-              onChange={(e) => setLabourHours(e.target.value)} placeholder="e.g. 2.5" />
-            <p className="text-xs text-amber-600 mt-0.5">Hours × Labour Rate from Settings = labour cost</p>
+            <label className="label text-xs">Labour Hours Formula</label>
+            <input
+              className="input py-1.5 text-sm font-mono"
+              value={labourHoursFormula}
+              onChange={(e) => setLabourHoursFormula(e.target.value)}
+              placeholder="e.g. 1 + width_m * 0.4"
+            />
+            <LabourFormulaPreview formula={labourHoursFormula} />
           </div>
           <div>
             <label className="label text-xs">Fixed Overhead per Panel (GHS) <span className="font-normal">— optional</span></label>

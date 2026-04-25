@@ -5,7 +5,7 @@ import { sendSuccess, sendPaginated } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
 import { getCurrentRate } from "../services/exchange-rate.service";
 import { nextDocNumber } from "../services/doc-number.service";
-import { calculateBOM, serializeBOMSnapshot } from "../services/bom-engine";
+import { calculateBOM, serializeBOMSnapshot, evaluateFormula } from "../services/bom-engine";
 
 // ── List / Get ────────────────────────────────────────────────────────────────
 
@@ -150,7 +150,10 @@ export async function createQuote(req: Request, res: Response) {
         const markup = new Decimal(markupSetting?.value ?? "0.35");
         const labourRate = new Decimal(labourRateSetting?.value ?? "0");
         const overheadRate = new Decimal(overheadRateSetting?.value ?? "0");
-        const labourHoursD = new Decimal(template.labourHours.toString());
+        // Evaluate labour hours formula with actual panel dimensions if set
+        const labourHoursD = template.labourHoursFormula
+          ? evaluateFormula(template.labourHoursFormula, input).quantity
+          : new Decimal(template.labourHours.toString());
         const labourCostGhs = labourHoursD.mul(labourRate);
         const overheadCostGhs = labourHoursD.mul(overheadRate).plus(new Decimal(template.overheadGhs.toString()));
         const totalCostGhs = matCostGhs.plus(labourCostGhs).plus(overheadCostGhs);

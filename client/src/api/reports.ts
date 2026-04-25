@@ -35,6 +35,9 @@ export const reportsApi = {
   getVat: (params?: { from?: string; to?: string }) =>
     apiClient.get<ApiResponse<unknown>>("/reports/vat", { params }).then((r) => r.data),
 
+  getVariance: (params?: { from?: string; to?: string }) =>
+    apiClient.get<ApiResponse<unknown>>("/reports/variance", { params }).then((r) => r.data),
+
   getCharts: () =>
     apiClient.get<ApiResponse<{
       revenueTrend: Array<{ month: string; revenueGhs: string }>;

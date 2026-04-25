@@ -4,7 +4,7 @@ import { prisma } from "../utils/prisma";
 import { sendSuccess, sendPaginated } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
 import { issueJobCardMaterial } from "../services/stock.service";
-import { deserializeBOMSnapshot } from "../services/bom-engine";
+import { deserializeBOMSnapshot, evaluateFormula } from "../services/bom-engine";
 import { nextDocNumber } from "../services/doc-number.service";
 
 // ── List / Get ────────────────────────────────────────────────────────────────
@@ -101,7 +101,10 @@ export async function generateJobCards(req: Request, res: Response) {
 
   const order = await prisma.order.findUniqueOrThrow({
     where: { id: req.params.id },
-    include: { items: { include: { curtainType: true, bomTemplate: true } }, jobCards: true },
+    include: {
+      items: { include: { curtainType: true, bomTemplate: true } },
+      jobCards: true,
+    },
   });
 
   if (order.jobCards.length > 0) {
@@ -121,12 +124,25 @@ export async function generateJobCards(req: Request, res: Response) {
       const item = order.items[i];
       const bom = item.bomSnapshot ? deserializeBOMSnapshot(item.bomSnapshot as Record<string, unknown>) : null;
 
+      // Compute standard labour hours from formula or fixed value
+      const bom_input = {
+        widthCm: Number(item.widthCm),
+        dropCm: Number(item.dropCm),
+        fullnessRatio: Number(item.fullnessRatio),
+        fabricWidthCm: 280,
+      };
+      const standardLabourHours = item.bomTemplate.labourHoursFormula
+        ? evaluateFormula(item.bomTemplate.labourHoursFormula, bom_input).quantity
+        : new Decimal(item.bomTemplate.labourHours.toString());
+
       const jc = await tx.jobCard.create({
         data: {
           orderId: order.id,
+          orderItemId: item.id,
           jobNumber: jobNumbers[i],
           status: "PENDING",
           assignedToId: assignedToId ?? null,
+          standardLabourHours,
           notes: `Window: ${item.windowLabel}`,
           ...(bom && {
             materials: {

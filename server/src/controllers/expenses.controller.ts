@@ -74,7 +74,7 @@ export async function listExpenses(req: Request, res: Response) {
 
 export async function createExpense(req: Request, res: Response) {
   const { date, description, amountGhs, type, categoryId, notes } = req.body;
-  const userId = (req as any).user.id;
+  const userId = req.auth!.userId;
 
   const expense = await prisma.expense.create({
     data: {

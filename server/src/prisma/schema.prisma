@@ -393,9 +393,10 @@ model BOMTemplate {
   curtainTypeId        String  @map("curtain_type_id")
   name                 String
   description          String?
-  defaultFullnessRatio Decimal @default(2.5) @map("default_fullness_ratio") @db.Decimal(6, 2)
-  labourHours          Decimal @default(0)   @map("labour_hours")           @db.Decimal(8, 2)
-  overheadGhs          Decimal @default(0)   @map("overhead_ghs")           @db.Decimal(18, 4)
+  defaultFullnessRatio Decimal  @default(2.5) @map("default_fullness_ratio") @db.Decimal(6, 2)
+  labourHours          Decimal  @default(0)   @map("labour_hours")           @db.Decimal(8, 2)
+  labourHoursFormula   String?               @map("labour_hours_formula")
+  overheadGhs          Decimal  @default(0)   @map("overhead_ghs")           @db.Decimal(18, 4)
   isActive             Boolean @default(true) @map("is_active")
   createdAt            DateTime @default(now()) @map("created_at")
 
@@ -588,10 +589,12 @@ model JobCard {
   status          JobStatus @default(PENDING)
   startedAt       DateTime? @map("started_at")
   completedAt     DateTime? @map("completed_at")
-  labourCostGhs   Decimal   @default(0) @map("labour_cost_ghs")   @db.Decimal(18, 4)
-  machineCostGhs  Decimal   @default(0) @map("machine_cost_ghs")  @db.Decimal(18, 4)
-  overheadCostGhs Decimal   @default(0) @map("overhead_cost_ghs") @db.Decimal(18, 4)
-  notes           String?
+  labourCostGhs       Decimal   @default(0) @map("labour_cost_ghs")        @db.Decimal(18, 4)
+  machineCostGhs      Decimal   @default(0) @map("machine_cost_ghs")       @db.Decimal(18, 4)
+  overheadCostGhs     Decimal   @default(0) @map("overhead_cost_ghs")      @db.Decimal(18, 4)
+  standardLabourHours Decimal   @default(0) @map("standard_labour_hours")  @db.Decimal(8, 2)
+  orderItemId         String?              @map("order_item_id")
+  notes               String?
 
   order      Order             @relation(fields: [orderId], references: [id])
   assignedTo User?             @relation(fields: [assignedToId], references: [id])

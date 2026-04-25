@@ -3,7 +3,7 @@ import Decimal from "decimal.js";
 import { prisma } from "../utils/prisma";
 import { sendSuccess, sendPaginated } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
-import { calculateBOM, validateFormula } from "../services/bom-engine";
+import { calculateBOM, validateFormula, evaluateFormula } from "../services/bom-engine";
 
 // ── Curtain Types ─────────────────────────────────────────────────────────────
 
@@ -87,11 +87,11 @@ export async function getTemplate(req: Request, res: Response) {
 }
 
 export async function createTemplate(req: Request, res: Response) {
-  const { curtainTypeId, name, defaultFullnessRatio, labourHours, overheadGhs, items } = req.body as {
+  const { curtainTypeId, name, defaultFullnessRatio, labourHoursFormula, overheadGhs, items } = req.body as {
     curtainTypeId: string;
     name: string;
     defaultFullnessRatio?: string;
-    labourHours?: number;
+    labourHoursFormula?: string;
     overheadGhs?: number;
     items: Array<{ materialId: string; quantityFormula: string; role?: string; notes?: string; sortOrder?: number }>;
   };
@@ -103,12 +103,25 @@ export async function createTemplate(req: Request, res: Response) {
     }
   }
 
+  // Validate labour hours formula if provided
+  if (labourHoursFormula) {
+    const check = validateFormula(labourHoursFormula);
+    if (!check.valid) throw new AppError(422, `Invalid labour hours formula: ${check.error}`);
+  }
+
+  // Compute a fallback fixed labourHours from the formula at default dimensions
+  const sampleInput = { widthCm: 200, dropCm: 250, fullnessRatio: 2.5, fabricWidthCm: 140 };
+  const computedHours = labourHoursFormula
+    ? evaluateFormula(labourHoursFormula, sampleInput).quantity
+    : new Decimal(0);
+
   const template = await prisma.bOMTemplate.create({
     data: {
       curtainTypeId,
       name,
       defaultFullnessRatio: defaultFullnessRatio ? new Decimal(defaultFullnessRatio) : new Decimal("2.5"),
-      ...(labourHours !== undefined && { labourHours: new Decimal(labourHours) }),
+      labourHours: computedHours,
+      labourHoursFormula: labourHoursFormula ?? null,
       ...(overheadGhs !== undefined && { overheadGhs: new Decimal(overheadGhs) }),
       items: {
         create: items.map((item, idx) => ({
@@ -130,13 +143,18 @@ export async function createTemplate(req: Request, res: Response) {
 }
 
 export async function updateTemplate(req: Request, res: Response) {
-  const { name, defaultFullnessRatio, labourHours, overheadGhs, items } = req.body as {
+  const { name, defaultFullnessRatio, labourHoursFormula, overheadGhs, items } = req.body as {
     name?: string;
     defaultFullnessRatio?: string;
-    labourHours?: number;
+    labourHoursFormula?: string;
     overheadGhs?: number;
     items?: Array<{ materialId: string; quantityFormula: string; role?: string; notes?: string; sortOrder?: number }>;
   };
+
+  if (labourHoursFormula) {
+    const check = validateFormula(labourHoursFormula);
+    if (!check.valid) throw new AppError(422, `Invalid labour hours formula: ${check.error}`);
+  }
 
   if (items) {
     for (const item of items) {
@@ -146,6 +164,11 @@ export async function updateTemplate(req: Request, res: Response) {
       }
     }
   }
+
+  const sampleInput = { widthCm: 200, dropCm: 250, fullnessRatio: 2.5, fabricWidthCm: 140 };
+  const computedHours = labourHoursFormula
+    ? evaluateFormula(labourHoursFormula, sampleInput).quantity
+    : undefined;
 
   const templateId = req.params.id as string;
 
@@ -159,7 +182,10 @@ export async function updateTemplate(req: Request, res: Response) {
       data: {
         ...(name && { name }),
         ...(defaultFullnessRatio && { defaultFullnessRatio: new Decimal(defaultFullnessRatio) }),
-        ...(labourHours !== undefined && { labourHours: new Decimal(labourHours) }),
+        ...(labourHoursFormula !== undefined && {
+          labourHoursFormula,
+          labourHours: computedHours ?? new Decimal(0),
+        }),
         ...(overheadGhs !== undefined && { overheadGhs: new Decimal(overheadGhs) }),
         ...(items && {
           items: {
@@ -265,16 +291,25 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
   ]);
   const labourRate = new Decimal(labourRateSetting?.value ?? "0");
   const overheadRate = new Decimal(overheadRateSetting?.value ?? "0");
-  const labourHours = new Decimal(template.labourHours.toString());
+
+  // If the template has a formula, evaluate it with actual dimensions; otherwise use stored fixed hours
+  const labourHours = template.labourHoursFormula
+    ? evaluateFormula(template.labourHoursFormula, input).quantity
+    : new Decimal(template.labourHours.toString());
 
   const totalMatCostGhs = enriched.reduce((s, l) => s.plus(new Decimal(l.lineCostGhs)), new Decimal(0));
   const labourCostGhs = labourHours.mul(labourRate);
-  // Overhead = rate-based (electricity/rent apportioned per labour hour) + any fixed template overhead
   const overheadCostGhs = labourHours.mul(overheadRate).plus(new Decimal(template.overheadGhs.toString()));
 
   sendSuccess(res, {
     input,
-    template: { id: template.id, name: template.name, labourHours: template.labourHours, overheadGhs: template.overheadGhs },
+    template: {
+      id: template.id,
+      name: template.name,
+      labourHours: labourHours.toFixed(2),
+      labourHoursFormula: template.labourHoursFormula,
+      overheadGhs: template.overheadGhs,
+    },
     lines: enriched,
     totalMatCostGhs: totalMatCostGhs.toFixed(4),
     labourCostGhs: labourCostGhs.toFixed(4),
