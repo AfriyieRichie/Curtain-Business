@@ -2,6 +2,7 @@
 // These mirror the Prisma schema and are used across all pages/hooks/api layers.
 
 export type Currency = "USD" | "GHS";
+export type ExpenseType = "ADMIN" | "FACTORY" | "SHARED";
 export type UserRole = "ADMIN" | "ACCOUNTS" | "SALES" | "WORKSHOP";
 export type UnitOfMeasure = "METER" | "PIECE" | "ROLL" | "PACK" | "SET";
 export type MovementType = "PURCHASE" | "PRODUCTION_ISSUE" | "MANUAL_ADJUSTMENT" | "DAMAGE" | "RETURN";
@@ -297,6 +298,44 @@ export interface Payment {
   notes?: string;
   recordedBy?: Pick<User, "id" | "name">;
   createdAt: string;
+}
+
+// ── Expenses ──────────────────────────────────────────────────────────────────
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  type: ExpenseType;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface Expense {
+  id: string;
+  date: string;
+  description: string;
+  amountGhs: string;
+  type: ExpenseType;
+  categoryId: string | null;
+  category?: Pick<ExpenseCategory, "id" | "name" | "type"> | null;
+  notes: string | null;
+  createdById: string;
+  createdBy?: Pick<User, "id" | "name">;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OverheadSummary {
+  factoryTotal: string;
+  adminTotal: string;
+  sharedTotal: string;
+  sharedFactoryPortion: string;
+  sharedAdminPortion: string;
+  totalFactoryOverhead: string;
+  totalAdminOverhead: string;
+  capacityHours: string;
+  suggestedOverheadRate: string | null;
+  expenseCount: number;
 }
 
 // ── API response wrappers ─────────────────────────────────────────────────────

@@ -2,7 +2,7 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Package, FileText, Users, ShoppingCart,
   ClipboardList, Wrench, Receipt, Truck, BarChart3, Settings,
-  Pencil,
+  Pencil, Wallet,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { exchangeRateApi } from "@/api/exchange-rates";
@@ -28,6 +28,7 @@ const navItems: NavItem[] = [
   { to: "/invoices",    icon: Receipt,         label: "Invoices",      roles: ADMIN_ACCOUNTS },
   { to: "/purchasing",  icon: Truck,           label: "Purchasing",    roles: ADMIN_ACCOUNTS },
   { to: "/reports",     icon: BarChart3,       label: "Reports",       roles: ADMIN_ACCOUNTS },
+  { to: "/expenses",    icon: Wallet,          label: "Expenses",      roles: ADMIN_ACCOUNTS },
   { to: "/settings",    icon: Settings,        label: "Settings",      roles: ["ADMIN"] },
 ];
 

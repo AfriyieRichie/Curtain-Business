@@ -33,6 +33,7 @@ import invoicesRouter from "./routes/invoices";
 import purchasingRouter from "./routes/purchasing";
 import reportsRouter from "./routes/reports";
 import settingsRouter from "./routes/settings";
+import expensesRouter from "./routes/expenses";
 
 const app = express();
 const PORT = process.env.PORT ?? 4000;
@@ -74,6 +75,7 @@ app.use("/api/invoices", invoicesRouter);
 app.use("/api/purchasing", purchasingRouter);
 app.use("/api/reports", reportsRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/expenses", expensesRouter);
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });

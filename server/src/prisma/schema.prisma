@@ -61,6 +61,12 @@ enum BOMLineRole {
   LINING
 }
 
+enum ExpenseType {
+  ADMIN
+  FACTORY
+  SHARED
+}
+
 enum POStatus {
   DRAFT
   SENT
@@ -141,6 +147,7 @@ model User {
   jobCards         JobCard[]
   stockMovements   StockMovement[]
   payments         Payment[]
+  expenses         Expense[]
 
   @@map("users")
 }
@@ -688,4 +695,36 @@ model BusinessSetting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("business_settings")
+}
+
+model ExpenseCategory {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  type      ExpenseType @default(SHARED)
+  isActive  Boolean     @default(true) @map("is_active")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  expenses  Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String           @id @default(uuid())
+  date        DateTime
+  description String
+  amountGhs   Decimal          @map("amount_ghs") @db.Decimal(18, 4)
+  type        ExpenseType
+  categoryId  String?          @map("category_id")
+  notes       String?
+  createdById String           @map("created_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  category  ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  createdBy User             @relation(fields: [createdById], references: [id])
+
+  @@index([date(sort: Desc)])
+  @@index([type])
+  @@map("expenses")
 }

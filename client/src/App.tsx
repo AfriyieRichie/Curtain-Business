@@ -18,6 +18,7 @@ import InvoicesPage from "@/pages/invoices/InvoicesPage";
 import PurchasingPage from "@/pages/purchasing/PurchasingPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import ExpensesPage from "@/pages/expenses/ExpensesPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuthStore();
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="invoices/*" element={<InvoicesPage />} />
           <Route path="purchasing/*" element={<PurchasingPage />} />
           <Route path="reports/*" element={<ReportsPage />} />
+          <Route path="expenses/*" element={<ExpensesPage />} />
           <Route path="settings/*" element={<SettingsPage />} />
         </Route>
 
