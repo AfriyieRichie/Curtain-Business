@@ -87,10 +87,12 @@ export async function getTemplate(req: Request, res: Response) {
 }
 
 export async function createTemplate(req: Request, res: Response) {
-  const { curtainTypeId, name, defaultFullnessRatio, items } = req.body as {
+  const { curtainTypeId, name, defaultFullnessRatio, labourHours, overheadGhs, items } = req.body as {
     curtainTypeId: string;
     name: string;
     defaultFullnessRatio?: string;
+    labourHours?: number;
+    overheadGhs?: number;
     items: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
   };
 
@@ -106,6 +108,8 @@ export async function createTemplate(req: Request, res: Response) {
       curtainTypeId,
       name,
       defaultFullnessRatio: defaultFullnessRatio ? new Decimal(defaultFullnessRatio) : new Decimal("2.5"),
+      ...(labourHours !== undefined && { labourHours: new Decimal(labourHours) }),
+      ...(overheadGhs !== undefined && { overheadGhs: new Decimal(overheadGhs) }),
       items: {
         create: items.map((item, idx) => ({
           materialId: item.materialId,
@@ -125,9 +129,11 @@ export async function createTemplate(req: Request, res: Response) {
 }
 
 export async function updateTemplate(req: Request, res: Response) {
-  const { name, defaultFullnessRatio, items } = req.body as {
+  const { name, defaultFullnessRatio, labourHours, overheadGhs, items } = req.body as {
     name?: string;
     defaultFullnessRatio?: string;
+    labourHours?: number;
+    overheadGhs?: number;
     items?: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
   };
 
@@ -152,6 +158,8 @@ export async function updateTemplate(req: Request, res: Response) {
       data: {
         ...(name && { name }),
         ...(defaultFullnessRatio && { defaultFullnessRatio: new Decimal(defaultFullnessRatio) }),
+        ...(labourHours !== undefined && { labourHours: new Decimal(labourHours) }),
+        ...(overheadGhs !== undefined && { overheadGhs: new Decimal(overheadGhs) }),
         ...(items && {
           items: {
             create: items.map((item, idx) => ({
@@ -234,5 +242,19 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
     };
   });
 
-  sendSuccess(res, { input, template: { id: template.id, name: template.name }, lines: enriched });
+  const labourRateSetting = await prisma.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } });
+  const labourRate = new Decimal(labourRateSetting?.value ?? "0");
+
+  const totalMatCostGhs = enriched.reduce((s, l) => s.plus(new Decimal(l.lineCostGhs)), new Decimal(0));
+  const labourCostGhs = new Decimal(template.labourHours.toString()).mul(labourRate);
+  const overheadCostGhs = new Decimal(template.overheadGhs.toString());
+
+  sendSuccess(res, {
+    input,
+    template: { id: template.id, name: template.name, labourHours: template.labourHours, overheadGhs: template.overheadGhs },
+    lines: enriched,
+    totalMatCostGhs: totalMatCostGhs.toFixed(4),
+    labourCostGhs: labourCostGhs.toFixed(4),
+    overheadCostGhs: overheadCostGhs.toFixed(4),
+  });
 }

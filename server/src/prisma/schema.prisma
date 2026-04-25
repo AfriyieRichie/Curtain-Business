@@ -47,6 +47,12 @@ enum MovementType {
   MANUAL_ADJUSTMENT
   DAMAGE
   RETURN
+  LANDED_COST_ADJUSTMENT
+}
+
+enum LCEStatus {
+  DRAFT
+  POSTED
 }
 
 enum POStatus {
@@ -123,6 +129,7 @@ model User {
   exchangeRates    ExchangeRate[]
   purchaseOrders   PurchaseOrder[]
   goodsReceivedNotes GoodsReceivedNote[]
+  landedCostEntries  LandedCostEntry[]
   quotes           Quote[]
   orders           Order[]
   jobCards         JobCard[]
@@ -288,16 +295,54 @@ model GoodsReceivedNote {
   poId                String   @map("po_id")
   receivedDate        DateTime @map("received_date")
   exchangeRateAtReceipt Decimal @map("exchange_rate_at_receipt") @db.Decimal(18, 6)
+  freightCostUsd      Decimal  @default(0) @map("freight_cost_usd")  @db.Decimal(18, 4)
+  clearingCostGhs     Decimal  @default(0) @map("clearing_cost_ghs") @db.Decimal(18, 4)
+  otherLandedGhs      Decimal  @default(0) @map("other_landed_ghs")  @db.Decimal(18, 4)
   notes               String?
   createdById         String   @map("created_by")
   createdAt           DateTime @default(now()) @map("created_at")
 
   po        PurchaseOrder       @relation(fields: [poId], references: [id])
-  createdBy User                @relation(fields: [createdById], references: [id])
-  items     GoodsReceivedItem[]
+  createdBy      User                @relation(fields: [createdById], references: [id])
+  items          GoodsReceivedItem[]
+  lceAllocations LandedCostGRN[]
 
   @@index([grnNumber])
   @@map("goods_received_notes")
+}
+
+model LandedCostEntry {
+  id              String    @id @default(uuid())
+  lceNumber       String    @unique @map("lce_number")
+  freightCostUsd  Decimal   @default(0) @map("freight_cost_usd")  @db.Decimal(18, 4)
+  clearingCostGhs Decimal   @default(0) @map("clearing_cost_ghs") @db.Decimal(18, 4)
+  otherLandedGhs  Decimal   @default(0) @map("other_landed_ghs")  @db.Decimal(18, 4)
+  exchangeRate    Decimal   @map("exchange_rate") @db.Decimal(18, 6)
+  notes           String?
+  status          LCEStatus @default(DRAFT)
+  postedAt        DateTime? @map("posted_at")
+  createdById     String    @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  createdBy User            @relation(fields: [createdById], references: [id])
+  grns      LandedCostGRN[]
+
+  @@index([lceNumber])
+  @@map("landed_cost_entries")
+}
+
+model LandedCostGRN {
+  id           String  @id @default(uuid())
+  lceId        String  @map("lce_id")
+  grnId        String  @map("grn_id")
+  allocatedGhs Decimal @default(0) @map("allocated_ghs") @db.Decimal(18, 4)
+
+  lce LandedCostEntry   @relation(fields: [lceId], references: [id], onDelete: Cascade)
+  grn GoodsReceivedNote @relation(fields: [grnId], references: [id])
+
+  @@unique([lceId, grnId])
+  @@index([grnId])
+  @@map("landed_cost_grns")
 }
 
 model GoodsReceivedItem {
@@ -336,6 +381,8 @@ model BOMTemplate {
   name                 String
   description          String?
   defaultFullnessRatio Decimal @default(2.5) @map("default_fullness_ratio") @db.Decimal(6, 2)
+  labourHours          Decimal @default(0)   @map("labour_hours")           @db.Decimal(8, 2)
+  overheadGhs          Decimal @default(0)   @map("overhead_ghs")           @db.Decimal(18, 4)
   isActive             Boolean @default(true) @map("is_active")
   createdAt            DateTime @default(now()) @map("created_at")
 

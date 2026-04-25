@@ -54,6 +54,146 @@ function CurtainTypeForm({ type, onSuccess, onCancel }: { type?: CurtainType; on
   );
 }
 
+// ── Formula Builder ───────────────────────────────────────────────────────────
+
+type FormulaType = "fabric" | "linear" | "count" | "fixed" | "custom";
+
+function inferType(formula: string): FormulaType {
+  if (!formula) return "fabric";
+  if (/^\d+(\.\d+)?$/.test(formula.trim())) return "fixed";
+  if (/^Math\.ceil\(width_m\s*\/\s*[\d.]+\)$/.test(formula.trim())) return "count";
+  if (/^width_m(\s*\*\s*fullness_ratio)?\s*\*\s*[\d.]+$/.test(formula.trim())) return "linear";
+  if (/^\(width_m/.test(formula.trim()) && formula.includes("drop_m")) return "fabric";
+  return "custom";
+}
+
+function buildFormula(type: FormulaType, params: Record<string, string>): string {
+  switch (type) {
+    case "fabric": {
+      const ws = (Number(params.widthSeam ?? 0) / 100).toFixed(2);
+      const ds = (Number(params.dropSeam ?? 0) / 100).toFixed(2);
+      const wPart = params.useFullness === "true" ? `width_m * fullness_ratio + ${ws}` : `width_m + ${ws}`;
+      return `(${wPart}) * (drop_m + ${ds})`;
+    }
+    case "linear": {
+      const mult = params.multiplier || "1";
+      return params.useFullness === "true"
+        ? `width_m * fullness_ratio * ${mult}`
+        : `width_m * ${mult}`;
+    }
+    case "count":
+      return `Math.ceil(width_m / ${params.spacing || "0.15"})`;
+    case "fixed":
+      return params.qty || "1";
+    default:
+      return params.raw ?? "";
+  }
+}
+
+function FormulaBuilder({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [type, setType] = useState<FormulaType>(() => inferType(value));
+  const [params, setParams] = useState<Record<string, string>>(() => {
+    if (!value) return { widthSeam: "10", dropSeam: "30", useFullness: "false", multiplier: "1", spacing: "0.15", qty: "1", raw: "" };
+    const t = inferType(value);
+    if (t === "fabric") {
+      const ws = value.match(/width_m(?:\s*\*\s*fullness_ratio)?\s*\+\s*([\d.]+)/)?.[1];
+      const ds = value.match(/drop_m\s*\+\s*([\d.]+)/)?.[1];
+      return { widthSeam: ws ? String(Math.round(Number(ws) * 100)) : "10", dropSeam: ds ? String(Math.round(Number(ds) * 100)) : "30", useFullness: String(value.includes("fullness_ratio")), multiplier: "1", spacing: "0.15", qty: "1", raw: value };
+    }
+    if (t === "linear") {
+      const mult = value.match(/\*\s*([\d.]+)$/)?.[1] ?? "1";
+      return { widthSeam: "10", dropSeam: "30", useFullness: String(value.includes("fullness_ratio")), multiplier: mult, spacing: "0.15", qty: "1", raw: value };
+    }
+    if (t === "count") {
+      const sp = value.match(/\/\s*([\d.]+)/)?.[1] ?? "0.15";
+      return { widthSeam: "10", dropSeam: "30", useFullness: "false", multiplier: "1", spacing: sp, qty: "1", raw: value };
+    }
+    if (t === "fixed") return { widthSeam: "10", dropSeam: "30", useFullness: "false", multiplier: "1", spacing: "0.15", qty: value.trim(), raw: value };
+    return { widthSeam: "10", dropSeam: "30", useFullness: "false", multiplier: "1", spacing: "0.15", qty: "1", raw: value };
+  });
+
+  function set(key: string, val: string) {
+    const next = { ...params, [key]: val };
+    setParams(next);
+    if (type !== "custom") onChange(buildFormula(type, next));
+  }
+
+  function switchType(t: FormulaType) {
+    setType(t);
+    if (t !== "custom") onChange(buildFormula(t, params));
+    else onChange(params.raw ?? "");
+  }
+
+  const generated = type !== "custom" ? buildFormula(type, params) : null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-1 flex-wrap">
+        {([["fabric", "Fabric (W×D)"], ["linear", "Linear (W)"], ["count", "Count"], ["fixed", "Fixed qty"], ["custom", "Custom"]] as [FormulaType, string][]).map(([t, label]) => (
+          <button key={t} type="button" onClick={() => switchType(t)}
+            className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${type === t ? "bg-violet-600 text-white border-violet-600" : "bg-white text-gray-600 border-gray-300 hover:border-violet-400"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {type === "fabric" && (
+        <div className="grid grid-cols-3 gap-2 items-end">
+          <div>
+            <label className="label text-xs">Width seam (cm)</label>
+            <input className="input py-1 text-sm" type="number" min="0" step="1" value={params.widthSeam} onChange={(e) => set("widthSeam", e.target.value)} />
+          </div>
+          <div>
+            <label className="label text-xs">Drop seam (cm)</label>
+            <input className="input py-1 text-sm" type="number" min="0" step="1" value={params.dropSeam} onChange={(e) => set("dropSeam", e.target.value)} />
+          </div>
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer pb-1">
+            <input type="checkbox" checked={params.useFullness === "true"} onChange={(e) => set("useFullness", String(e.target.checked))} className="accent-violet-600" />
+            Include fullness ratio
+          </label>
+        </div>
+      )}
+
+      {type === "linear" && (
+        <div className="grid grid-cols-2 gap-2 items-end">
+          <div>
+            <label className="label text-xs">Multiplier</label>
+            <input className="input py-1 text-sm" type="number" min="0" step="0.01" value={params.multiplier} onChange={(e) => set("multiplier", e.target.value)} />
+          </div>
+          <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer pb-1">
+            <input type="checkbox" checked={params.useFullness === "true"} onChange={(e) => set("useFullness", String(e.target.checked))} className="accent-violet-600" />
+            Include fullness ratio
+          </label>
+        </div>
+      )}
+
+      {type === "count" && (
+        <div className="max-w-[160px]">
+          <label className="label text-xs">Spacing (m)</label>
+          <input className="input py-1 text-sm" type="number" min="0.01" step="0.01" value={params.spacing} onChange={(e) => set("spacing", e.target.value)} />
+        </div>
+      )}
+
+      {type === "fixed" && (
+        <div className="max-w-[120px]">
+          <label className="label text-xs">Quantity</label>
+          <input className="input py-1 text-sm" type="number" min="1" step="1" value={params.qty} onChange={(e) => set("qty", e.target.value)} />
+        </div>
+      )}
+
+      {type === "custom" && (
+        <input className="input font-mono text-xs" value={value} onChange={(e) => onChange(e.target.value)} placeholder="e.g. (width_m * fullness_ratio) / fabric_width_m * drop_m" />
+      )}
+
+      {generated && (
+        <div className="rounded bg-gray-100 px-2 py-1 font-mono text-xs text-gray-500">
+          Formula: <span className="text-gray-800">{generated}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── BOM Template Form ─────────────────────────────────────────────────────────
 
 let itemKey = 0;
@@ -68,6 +208,8 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
   const [curtainTypeId, setCurtainTypeId] = useState(template?.curtainTypeId ?? "");
   const [description, setDescription] = useState(template?.description ?? "");
   const [fullness, setFullness] = useState(template?.defaultFullnessRatio ?? "2.5");
+  const [labourHours, setLabourHours] = useState(template ? String(Number(template.labourHours) || "") : "");
+  const [overheadGhs, setOverheadGhs] = useState(template ? String(Number(template.overheadGhs) || "") : "");
   const [items, setItems] = useState<(BOMItemPayload & { _key: number })[]>(
     template?.items?.map((i, idx) => ({ _key: ++itemKey, materialId: i.materialId, quantityFormula: i.quantityFormula, notes: i.notes ?? "", sortOrder: idx })) ?? [newItem()]
   );
@@ -77,7 +219,14 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => {
-      const payload = { curtainTypeId, name, description: description || undefined, defaultFullnessRatio: fullness, items: items.map(({ _key, ...i }) => i) };
+      const payload = {
+        curtainTypeId, name,
+        description: description || undefined,
+        defaultFullnessRatio: fullness,
+        labourHours: labourHours ? Number(labourHours) : 0,
+        overheadGhs: overheadGhs ? Number(overheadGhs) : 0,
+        items: items.map(({ _key, ...i }) => i),
+      };
       return template ? bomApi.updateTemplate(template.id, payload) : bomApi.createTemplate(payload);
     },
     onSuccess: () => { toast.success(template ? "Template updated" : "Template created"); onSuccess(); },
@@ -117,39 +266,54 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
         </div>
       </div>
 
+      <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 space-y-2">
+        <p className="text-xs font-semibold text-amber-800">Production Costs <span className="font-normal text-amber-600">(used in quote pricing alongside material cost)</span></p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label text-xs">Labour Hours per Panel</label>
+            <input className="input py-1.5 text-sm" type="number" min="0" step="0.25" value={labourHours}
+              onChange={(e) => setLabourHours(e.target.value)} placeholder="e.g. 2.5" />
+            <p className="text-xs text-amber-600 mt-0.5">Multiplied by the labour rate set in Settings</p>
+          </div>
+          <div>
+            <label className="label text-xs">Overhead per Panel (GHS)</label>
+            <input className="input py-1.5 text-sm" type="number" min="0" step="0.01" value={overheadGhs}
+              onChange={(e) => setOverheadGhs(e.target.value)} placeholder="e.g. 30.00" />
+            <p className="text-xs text-amber-600 mt-0.5">Fixed overhead cost added to each panel</p>
+          </div>
+        </div>
+      </div>
+
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <div>
-            <label className="label mb-0">Material Lines *</label>
-            <p className="text-xs text-gray-400 mt-0.5">Variables: <code className="bg-gray-100 px-1 rounded">width_m</code> <code className="bg-gray-100 px-1 rounded">drop_m</code> <code className="bg-gray-100 px-1 rounded">fullness_ratio</code> <code className="bg-gray-100 px-1 rounded">fabric_width_m</code></p>
-          </div>
+          <label className="label mb-0">Material Lines *</label>
           <button type="button" onClick={() => setItems((p) => [...p, newItem()])} className="btn-secondary text-xs py-1 px-2">
             <Plus size={12} /> Add Line
           </button>
         </div>
 
-        <div className="space-y-2">
-          {items.map((item, idx) => (
-            <div key={item._key} className="grid grid-cols-12 gap-2 items-start rounded-lg border border-gray-100 bg-gray-50 p-3">
-              <div className="col-span-4">
-                <label className="label text-xs">Material *</label>
-                <select className="input" value={item.materialId} onChange={(e) => updateItem(item._key, "materialId", e.target.value)}>
-                  <option value="">Select…</option>
-                  {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
-                </select>
-              </div>
-              <div className="col-span-5">
-                <label className="label text-xs">Formula *</label>
-                <input className="input font-mono text-xs" value={item.quantityFormula} onChange={(e) => updateItem(item._key, "quantityFormula", e.target.value)} placeholder="e.g. (width_m * fullness_ratio) / fabric_width_m * drop_m" />
-              </div>
-              <div className="col-span-2">
-                <label className="label text-xs">Notes</label>
-                <input className="input text-xs" value={item.notes ?? ""} onChange={(e) => updateItem(item._key, "notes", e.target.value)} placeholder="Optional" />
-              </div>
-              <div className="col-span-1 flex items-end pb-1">
-                <button type="button" onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))} disabled={items.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 mt-5">
+        <div className="space-y-3">
+          {items.map((item) => (
+            <div key={item._key} className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2">
+              <div className="flex items-start gap-2">
+                <div className="flex-1">
+                  <label className="label text-xs">Material *</label>
+                  <select className="input" value={item.materialId} onChange={(e) => updateItem(item._key, "materialId", e.target.value)}>
+                    <option value="">Select…</option>
+                    {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
+                  </select>
+                </div>
+                <div className="w-40 shrink-0">
+                  <label className="label text-xs">Notes</label>
+                  <input className="input text-xs" value={item.notes ?? ""} onChange={(e) => updateItem(item._key, "notes", e.target.value)} placeholder="Optional" />
+                </div>
+                <button type="button" onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))} disabled={items.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 mt-5 shrink-0">
                   <Trash2 size={14} />
                 </button>
+              </div>
+              <div>
+                <label className="label text-xs">Quantity Formula *</label>
+                <FormulaBuilder value={item.quantityFormula} onChange={(v) => updateItem(item._key, "quantityFormula", v)} />
               </div>
             </div>
           ))}

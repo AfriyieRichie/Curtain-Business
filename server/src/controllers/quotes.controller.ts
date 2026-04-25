@@ -130,14 +130,20 @@ export async function createQuote(req: Request, res: Response) {
           );
         }
 
-        // Selling price: caller-supplied or auto-compute with 40% mark-up on material cost
-        const [markupSetting] = await Promise.all([
+        // Labour + overhead from template
+        const [markupSetting, labourRateSetting] = await Promise.all([
           tx.businessSetting.findUnique({ where: { key: "currency.markupRatio" } }),
+          tx.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } }),
         ]);
         const markup = new Decimal(markupSetting?.value ?? "0.35");
+        const labourRate = new Decimal(labourRateSetting?.value ?? "0");
+        const labourCostGhs = new Decimal(template.labourHours.toString()).mul(labourRate);
+        const overheadCostGhs = new Decimal(template.overheadGhs.toString());
+        const totalCostGhs = matCostGhs.plus(labourCostGhs).plus(overheadCostGhs);
+
         const unitPriceGhs = item.unitPriceGhs
           ? new Decimal(item.unitPriceGhs)
-          : matCostGhs.mul(new Decimal(1).plus(markup)).toDecimalPlaces(2);
+          : totalCostGhs.mul(new Decimal(1).plus(markup)).toDecimalPlaces(2);
 
         const lineTotal = unitPriceGhs.mul(item.quantity).toDecimalPlaces(2);
         totalGhs = totalGhs.plus(lineTotal);

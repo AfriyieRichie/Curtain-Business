@@ -112,7 +112,7 @@ export async function sendPurchaseOrderEmail(poId: string, pdfBuffer: Buffer): P
     html: `
       <p>Dear ${po.supplier.contactPerson ?? po.supplier.name},</p>
       <p>Please find attached purchase order <strong>${po.poNumber}</strong>
-         for <strong>${po.items ? po.items.length : ""} item(s)</strong>.</p>
+         .</p>
       ${po.expectedDate ? `<p>Expected delivery: <strong>${new Date(po.expectedDate).toLocaleDateString("en-GB")}</strong></p>` : ""}
       <p>Please confirm receipt of this order at your earliest convenience.</p>
       <br/><p>Kind regards,</p>

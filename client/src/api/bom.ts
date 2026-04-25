@@ -10,7 +10,14 @@ export interface BOMCalculateRequest {
 }
 
 export interface BOMItemPayload { materialId: string; quantityFormula: string; notes?: string; sortOrder?: number; }
-export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; items: BOMItemPayload[]; }
+export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; labourHours?: number; overheadGhs?: number; items: BOMItemPayload[]; }
+
+export interface BOMCalculateResult {
+  lines: Array<{ materialId: string; material: { code: string; name: string; unit: string }; quantity: number; lineCostGhs: string }>;
+  totalMatCostGhs: string;
+  labourCostGhs: string;
+  overheadCostGhs: string;
+}
 
 export const bomApi = {
   getCurtainTypes: () =>
@@ -40,7 +47,7 @@ export const bomApi = {
     apiClient.delete(`/bom/templates/${id}`).then((r) => r.data),
 
   calculate: (data: BOMCalculateRequest) =>
-    apiClient.post(`/bom/templates/${data.bomTemplateId}/calculate`, {
+    apiClient.post<{ data: BOMCalculateResult }>(`/bom/templates/${data.bomTemplateId}/calculate`, {
       widthCm: data.widthCm,
       dropCm: data.dropCm,
       fullnessRatio: data.fullnessRatio,

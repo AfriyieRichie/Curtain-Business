@@ -10,9 +10,6 @@ export interface PurchaseOrder {
   status: string;
   subtotal: string;
   total: string;
-  freightCostUsd: string;
-  clearingCostGhs: string;
-  otherLandedGhs: string;
   orderDate: string;
   expectedDate?: string;
   notes?: string;
@@ -36,6 +33,9 @@ export interface GRN {
   poId: string;
   receivedDate: string;
   exchangeRateAtReceipt: string;
+  freightCostUsd: string;
+  clearingCostGhs: string;
+  otherLandedGhs: string;
   items: GRNItem[];
   createdAt: string;
 }
@@ -47,6 +47,44 @@ export interface GRNItem {
   receivedQty: string;
   unitCostUsd: string;
   unitCostGhs: string;
+}
+
+export interface GRNSummary {
+  id: string;
+  grnNumber: string;
+  receivedDate: string;
+  poNumber: string;
+  supplierName: string;
+  totalUsd: string;
+  hasPostedLCE: boolean;
+  existingLCE: string | null;
+}
+
+export interface LandedCostGRNAllocation {
+  id: string;
+  lceId: string;
+  grnId: string;
+  allocatedGhs: string;
+  grn: {
+    grnNumber: string;
+    receivedDate: string;
+    po: { poNumber: string; supplier: { name: string } };
+    items: Array<{ receivedQty: string; unitCostUsd: string }>;
+  };
+}
+
+export interface LandedCostEntry {
+  id: string;
+  lceNumber: string;
+  freightCostUsd: string;
+  clearingCostGhs: string;
+  otherLandedGhs: string;
+  exchangeRate: string;
+  notes?: string;
+  status: "DRAFT" | "POSTED";
+  postedAt?: string;
+  createdAt: string;
+  grns: LandedCostGRNAllocation[];
 }
 
 export const purchasingApi = {
@@ -70,13 +108,13 @@ export const purchasingApi = {
   getPO: (id: string) =>
     apiClient.get<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}`).then((r) => r.data),
 
-  createPO: (data: { supplierId: string; items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; expectedDate?: string; notes?: string; freightCostUsd?: string; clearingCostGhs?: string; otherLandedGhs?: string }) =>
+  createPO: (data: { supplierId: string; items: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; expectedDate?: string; notes?: string }) =>
     apiClient.post<ApiResponse<PurchaseOrder>>("/purchasing/purchase-orders", data).then((r) => r.data),
 
   updatePO: (id: string, data: { status?: string; expectedDate?: string; notes?: string }) =>
     apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}`, data).then((r) => r.data),
 
-  editPO: (id: string, data: { expectedDate?: string; notes?: string; items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }>; freightCostUsd?: string; clearingCostGhs?: string; otherLandedGhs?: string }) =>
+  editPO: (id: string, data: { expectedDate?: string; notes?: string; items?: Array<{ materialId: string; orderedQty: number; unitCostUsd: number }> }) =>
     apiClient.patch<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}/edit`, data).then((r) => r.data),
 
   downloadPOPDF: (id: string, poNumber: string) =>
@@ -89,9 +127,28 @@ export const purchasingApi = {
   listGRNs: (poId: string) =>
     apiClient.get<ApiResponse<GRN[]>>(`/purchasing/purchase-orders/${poId}/grns`).then((r) => r.data),
 
-  createGRN: (poId: string, data: { items: Array<{ poItemId: string; receivedQty: number; unitCostUsd: number }>; exchangeRateAtReceipt?: string }) =>
+  createGRN: (poId: string, data: { items: Array<{ poItemId: string; receivedQty: number; unitCostUsd: number }>; exchangeRateAtReceipt?: string; freightCostUsd?: string; clearingCostGhs?: string; otherLandedGhs?: string }) =>
     apiClient.post<ApiResponse<{ grn: GRN }>>(`/purchasing/purchase-orders/${poId}/grns`, data).then((r) => r.data),
 
   downloadGRNPDF: (poId: string, grnId: string, grnNumber: string) =>
     downloadPDF(`/purchasing/purchase-orders/${poId}/grns/${grnId}/pdf`, `${grnNumber}.pdf`),
+
+  // Landed Cost Entries
+  listLCEs: (params?: { page?: number }) =>
+    apiClient.get<PaginatedResponse<LandedCostEntry>>("/purchasing/landed-costs", { params }).then((r) => r.data),
+
+  listAvailableGRNs: () =>
+    apiClient.get<ApiResponse<GRNSummary[]>>("/purchasing/landed-costs/available-grns").then((r) => r.data),
+
+  createLCE: (data: { freightCostUsd?: number; clearingCostGhs?: number; otherLandedGhs?: number; exchangeRate?: string; notes?: string; grnIds: string[] }) =>
+    apiClient.post<ApiResponse<LandedCostEntry>>("/purchasing/landed-costs", data).then((r) => r.data),
+
+  getLCE: (id: string) =>
+    apiClient.get<ApiResponse<LandedCostEntry>>(`/purchasing/landed-costs/${id}`).then((r) => r.data),
+
+  updateLCE: (id: string, data: { freightCostUsd?: number; clearingCostGhs?: number; otherLandedGhs?: number; exchangeRate?: string; notes?: string; grnIds?: string[] }) =>
+    apiClient.patch<ApiResponse<LandedCostEntry>>(`/purchasing/landed-costs/${id}`, data).then((r) => r.data),
+
+  postLCE: (id: string) =>
+    apiClient.post<ApiResponse<LandedCostEntry>>(`/purchasing/landed-costs/${id}/post`).then((r) => r.data),
 };

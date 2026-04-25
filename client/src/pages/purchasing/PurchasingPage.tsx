@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Truck, Download, Send, Pencil, X, AlertTriangle } from "lucide-react";
+import { Plus, Truck, Download, Send, Pencil, X, AlertTriangle, PackageCheck, CheckCircle2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useForm } from "react-hook-form";
-import { purchasingApi, type PurchaseOrder, type POItem } from "@/api/purchasing";
+import { purchasingApi, type PurchaseOrder, type POItem, type LandedCostEntry } from "@/api/purchasing";
 import { inventoryApi } from "@/api/inventory";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
@@ -15,7 +15,7 @@ import Spinner from "@/components/ui/Spinner";
 import { formatDate } from "@/lib/formatters";
 import type { Supplier } from "@/types";
 
-type Tab = "suppliers" | "purchase-orders";
+type Tab = "suppliers" | "purchase-orders" | "landed-costs";
 
 function fmtGhs(v: string | number) {
   return `GHS ${Number(v).toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -124,37 +124,11 @@ function POItemsEditor({ items, onChange }: { items: ItemRow[]; onChange: (items
 
 // ── PO Create form ────────────────────────────────────────────────────────────
 
-function LandedCostFields({ freight, clearing, other, onChange }: {
-  freight: string; clearing: string; other: string;
-  onChange: (field: "freight" | "clearing" | "other", val: string) => void;
-}) {
-  return (
-    <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-2">
-      <p className="text-xs font-semibold text-blue-700">Landed Costs (optional — distributed to unit costs on receipt)</p>
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label className="label text-xs">Freight (USD)</label>
-          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={freight} onChange={(e) => onChange("freight", e.target.value)} placeholder="0.00" />
-        </div>
-        <div>
-          <label className="label text-xs">Clearing (GHS)</label>
-          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={clearing} onChange={(e) => onChange("clearing", e.target.value)} placeholder="0.00" />
-        </div>
-        <div>
-          <label className="label text-xs">Other (GHS)</label>
-          <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={other} onChange={(e) => onChange("other", e.target.value)} placeholder="0.00" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onSuccess: () => void; onCancel: () => void }) {
   const [supplierId, setSupplierId] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<ItemRow[]>([{ materialId: "", orderedQty: 1, unitCostUsd: 0 }]);
-  const [landed, setLanded] = useState({ freight: "", clearing: "", other: "" });
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.createPO({
@@ -162,9 +136,6 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
       items: items.map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })),
       expectedDate: expectedDate || undefined,
       notes: notes || undefined,
-      freightCostUsd: landed.freight || undefined,
-      clearingCostGhs: landed.clearing || undefined,
-      otherLandedGhs: landed.other || undefined,
     }),
     onSuccess: () => { toast.success("Purchase order created"); onSuccess(); },
     onError: (e: unknown) => {
@@ -190,8 +161,6 @@ function POForm({ suppliers, onSuccess, onCancel }: { suppliers: Supplier[]; onS
         </div>
       </div>
       <POItemsEditor items={items} onChange={setItems} />
-      <LandedCostFields freight={landed.freight} clearing={landed.clearing} other={landed.other}
-        onChange={(f, v) => setLanded((p) => ({ ...p, [f]: v }))} />
       <div>
         <label className="label">Notes</label>
         <textarea className="input resize-none" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -214,20 +183,12 @@ function EditPOForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess:
   const [items, setItems] = useState<ItemRow[]>(
     (po.items ?? []).map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCost) }))
   );
-  const [landed, setLanded] = useState({
-    freight: Number(po.freightCostUsd) > 0 ? po.freightCostUsd : "",
-    clearing: Number(po.clearingCostGhs) > 0 ? po.clearingCostGhs : "",
-    other: Number(po.otherLandedGhs) > 0 ? po.otherLandedGhs : "",
-  });
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => purchasingApi.editPO(po.id, {
       expectedDate: expectedDate || undefined,
       notes: notes || undefined,
       items: items.map((i) => ({ materialId: i.materialId, orderedQty: Number(i.orderedQty), unitCostUsd: Number(i.unitCostUsd) })),
-      freightCostUsd: landed.freight || undefined,
-      clearingCostGhs: landed.clearing || undefined,
-      otherLandedGhs: landed.other || undefined,
     }),
     onSuccess: () => { toast.success("Purchase order updated"); onSuccess(); },
     onError: (e: unknown) => {
@@ -248,8 +209,6 @@ function EditPOForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess:
         </div>
       </div>
       <POItemsEditor items={items} onChange={setItems} />
-      <LandedCostFields freight={landed.freight} clearing={landed.clearing} other={landed.other}
-        onChange={(f, v) => setLanded((p) => ({ ...p, [f]: v }))} />
       <div>
         <label className="label">Notes</label>
         <textarea className="input resize-none" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -270,13 +229,19 @@ function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: ()
   const [items, setItems] = useState(
     (po.items ?? []).map((i) => ({
       poItemId: i.id,
-      receivedQty: Number(i.orderedQty) - Number(i.receivedQty), // default = outstanding qty
+      receivedQty: Number(i.orderedQty) - Number(i.receivedQty),
       unitCostUsd: Number(i.unitCost),
     }))
   );
+  const [landed, setLanded] = useState({ freight: "", clearing: "", other: "" });
 
   const { mutate, isPending } = useMutation({
-    mutationFn: () => purchasingApi.createGRN(po.id, { items }),
+    mutationFn: () => purchasingApi.createGRN(po.id, {
+      items,
+      freightCostUsd: landed.freight || undefined,
+      clearingCostGhs: landed.clearing || undefined,
+      otherLandedGhs: landed.other || undefined,
+    }),
     onSuccess: () => { toast.success("Goods receipt recorded. Stock updated."); onSuccess(); },
     onError: (e: unknown) => {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to record receipt";
@@ -285,6 +250,7 @@ function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: ()
   });
 
   const poItems = po.items ?? [];
+  const hasLanded = Number(landed.freight) > 0 || Number(landed.clearing) > 0 || Number(landed.other) > 0;
 
   return (
     <div className="space-y-4">
@@ -343,6 +309,32 @@ function GRNForm({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuccess: ()
           })}
         </tbody>
       </table>
+
+      <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 space-y-2">
+        <p className="text-xs font-semibold text-blue-700">
+          Landed Costs <span className="font-normal text-blue-500">(optional — enter actual freight &amp; clearing costs from your invoices)</span>
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="label text-xs">Freight Invoice (USD)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={landed.freight}
+              onChange={(e) => setLanded((p) => ({ ...p, freight: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div>
+            <label className="label text-xs">Port Clearing (GHS)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={landed.clearing}
+              onChange={(e) => setLanded((p) => ({ ...p, clearing: e.target.value }))} placeholder="0.00" />
+          </div>
+          <div>
+            <label className="label text-xs">Other (GHS)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={landed.other}
+              onChange={(e) => setLanded((p) => ({ ...p, other: e.target.value }))} placeholder="0.00" />
+          </div>
+        </div>
+        {hasLanded && (
+          <p className="text-xs text-blue-600">These costs will be distributed proportionally to each item's unit cost.</p>
+        )}
+      </div>
 
       <div className="flex justify-between items-center pt-1">
         <span className="text-xs text-gray-400">* Stock levels will be updated immediately on confirmation</span>
@@ -591,22 +583,9 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-gray-200">
-                <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-gray-700">Subtotal:</td>
+                <td colSpan={5} className="pt-2 text-right text-sm font-semibold text-gray-700">Total:</td>
                 <td className="pt-2 text-right font-mono font-bold">{fmtUsd(po.total)}</td>
               </tr>
-              {(Number(po.freightCostUsd) > 0 || Number(po.clearingCostGhs) > 0 || Number(po.otherLandedGhs) > 0) && (
-                <tr>
-                  <td colSpan={6} className="pt-2">
-                    <div className="rounded bg-blue-50 border border-blue-100 px-3 py-2 text-xs text-blue-700 flex gap-4 flex-wrap">
-                      <span className="font-semibold">Landed Costs:</span>
-                      {Number(po.freightCostUsd) > 0 && <span>Freight: {fmtUsd(po.freightCostUsd)}</span>}
-                      {Number(po.clearingCostGhs) > 0 && <span>Clearing: {fmtGhs(po.clearingCostGhs)}</span>}
-                      {Number(po.otherLandedGhs) > 0 && <span>Other: {fmtGhs(po.otherLandedGhs)}</span>}
-                      <span className="text-blue-500">Distributed to unit costs on receipt</span>
-                    </div>
-                  </td>
-                </tr>
-              )}
             </tfoot>
           </table>
         )}
@@ -638,7 +617,8 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
                     <tr className="text-gray-500 border-b border-green-100">
                       <th className="pb-1 text-left font-normal">Material</th>
                       <th className="pb-1 text-right font-normal">Qty Received</th>
-                      <th className="pb-1 text-right font-normal">Unit Cost</th>
+                      <th className="pb-1 text-right font-normal">Unit Cost (USD)</th>
+                      <th className="pb-1 text-right font-normal">Unit Cost (GHS)</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -647,10 +627,19 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
                         <td className="py-0.5">{gi.material?.code} — {gi.material?.name}</td>
                         <td className="py-0.5 text-right font-mono">{Number(gi.receivedQty).toFixed(2)}</td>
                         <td className="py-0.5 text-right font-mono">{fmtUsd(gi.unitCostUsd)}</td>
+                        <td className="py-0.5 text-right font-mono">{fmtGhs(gi.unitCostGhs)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                {(Number(grn.freightCostUsd) > 0 || Number(grn.clearingCostGhs) > 0 || Number(grn.otherLandedGhs) > 0) && (
+                  <div className="mt-2 rounded bg-green-100 px-3 py-1.5 text-xs text-green-700 flex gap-4 flex-wrap">
+                    <span className="font-semibold">Landed costs included:</span>
+                    {Number(grn.freightCostUsd) > 0 && <span>Freight {fmtUsd(grn.freightCostUsd)}</span>}
+                    {Number(grn.clearingCostGhs) > 0 && <span>Clearing {fmtGhs(grn.clearingCostGhs)}</span>}
+                    {Number(grn.otherLandedGhs) > 0 && <span>Other {fmtGhs(grn.otherLandedGhs)}</span>}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -687,6 +676,360 @@ function GRNModalWrapper({ po, onSuccess, onCancel }: { po: PurchaseOrder; onSuc
   return <GRNForm po={fullPO} onSuccess={onSuccess} onCancel={onCancel} />;
 }
 
+// ── Landed Cost Entry form ────────────────────────────────────────────────────
+
+function LCEForm({ lce, onSuccess, onCancel }: { lce?: LandedCostEntry; onSuccess: () => void; onCancel: () => void }) {
+  const isEdit = !!lce;
+  const [freight, setFreight] = useState(lce ? String(Number(lce.freightCostUsd) || "") : "");
+  const [clearing, setClearing] = useState(lce ? String(Number(lce.clearingCostGhs) || "") : "");
+  const [other, setOther] = useState(lce ? String(Number(lce.otherLandedGhs) || "") : "");
+  const [rate, setRate] = useState(lce ? String(Number(lce.exchangeRate) || "") : "");
+  const [notes, setNotes] = useState(lce?.notes ?? "");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set(lce?.grns.map((lg) => lg.grnId) ?? []));
+
+  const { data: grnsData } = useQuery({
+    queryKey: ["available-grns"],
+    queryFn: () => purchasingApi.listAvailableGRNs(),
+  });
+  const availableGRNs = grnsData?.data ?? [];
+
+  const toggle = (id: string) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+
+  const selected = availableGRNs.filter((g) => selectedIds.has(g.id));
+
+  const distribution = useMemo(() => {
+    const totalUsd = selected.reduce((s, g) => s + Number(g.totalUsd), 0);
+    const freightGhs = Number(freight || 0) * Number(rate || 15.5);
+    const totalLandedGhs = freightGhs + Number(clearing || 0) + Number(other || 0);
+    return selected.map((g) => {
+      const share = totalUsd > 0 ? Number(g.totalUsd) / totalUsd : 1 / selected.length;
+      return { ...g, share: (share * 100).toFixed(1), allocatedGhs: (totalLandedGhs * share).toFixed(2) };
+    });
+  }, [selected, freight, clearing, other, rate]);
+
+  const totalLandedGhs = Number(freight || 0) * Number(rate || 15.5) + Number(clearing || 0) + Number(other || 0);
+
+  const { mutate, isPending } = useMutation({
+    mutationFn: () => isEdit
+      ? purchasingApi.updateLCE(lce.id, {
+          freightCostUsd: freight ? Number(freight) : undefined,
+          clearingCostGhs: clearing ? Number(clearing) : undefined,
+          otherLandedGhs: other ? Number(other) : undefined,
+          exchangeRate: rate || undefined,
+          notes: notes || undefined,
+          grnIds: [...selectedIds],
+        })
+      : purchasingApi.createLCE({
+          freightCostUsd: freight ? Number(freight) : undefined,
+          clearingCostGhs: clearing ? Number(clearing) : undefined,
+          otherLandedGhs: other ? Number(other) : undefined,
+          exchangeRate: rate || undefined,
+          notes: notes || undefined,
+          grnIds: [...selectedIds],
+        }),
+    onSuccess: () => { toast.success(isEdit ? "Landed cost entry updated" : "Landed cost entry created"); onSuccess(); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to save LCE";
+      toast.error(msg);
+    },
+  });
+
+  const canSubmit = selectedIds.size > 0 && (Number(freight) > 0 || Number(clearing) > 0 || Number(other) > 0);
+
+  return (
+    <div className="space-y-5">
+      {/* Cost inputs */}
+      <div>
+        <p className="text-xs font-semibold text-gray-600 mb-2">Invoice Amounts</p>
+        <div className="grid grid-cols-4 gap-3">
+          <div>
+            <label className="label text-xs">Freight Invoice (USD)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={freight}
+              onChange={(e) => setFreight(e.target.value)} placeholder="0.00" />
+          </div>
+          <div>
+            <label className="label text-xs">Exchange Rate (GHS/USD)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={rate}
+              onChange={(e) => setRate(e.target.value)} placeholder="e.g. 15.80" />
+          </div>
+          <div>
+            <label className="label text-xs">Port Clearing (GHS)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={clearing}
+              onChange={(e) => setClearing(e.target.value)} placeholder="0.00" />
+          </div>
+          <div>
+            <label className="label text-xs">Other Charges (GHS)</label>
+            <input type="number" min="0" step="0.01" className="input py-1.5 text-sm" value={other}
+              onChange={(e) => setOther(e.target.value)} placeholder="0.00" />
+          </div>
+        </div>
+        {totalLandedGhs > 0 && (
+          <p className="mt-1.5 text-xs text-blue-600 font-medium">
+            Total landed cost: GHS {totalLandedGhs.toLocaleString("en-GH", { minimumFractionDigits: 2 })}
+          </p>
+        )}
+      </div>
+
+      {/* GRN selector */}
+      <div>
+        <p className="text-xs font-semibold text-gray-600 mb-2">
+          Select GRNs in this shipment <span className="font-normal text-gray-400">({selectedIds.size} selected)</span>
+        </p>
+        <div className="rounded-lg border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <tr>
+                <th className="px-3 py-2 text-left w-8"></th>
+                <th className="px-3 py-2 text-left">GRN</th>
+                <th className="px-3 py-2 text-left">PO / Supplier</th>
+                <th className="px-3 py-2 text-right">Received</th>
+                <th className="px-3 py-2 text-right">Value (USD)</th>
+                <th className="px-3 py-2 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {availableGRNs.length === 0 && (
+                <tr><td colSpan={6} className="px-3 py-4 text-center text-sm text-gray-400">No GRNs found</td></tr>
+              )}
+              {availableGRNs.map((grn) => (
+                <tr key={grn.id}
+                  onClick={() => !grn.hasPostedLCE && toggle(grn.id)}
+                  className={`transition-colors ${grn.hasPostedLCE ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-50"} ${selectedIds.has(grn.id) ? "bg-blue-50" : ""}`}>
+                  <td className="px-3 py-2.5">
+                    <input type="checkbox" readOnly checked={selectedIds.has(grn.id)} disabled={grn.hasPostedLCE}
+                      className="rounded accent-violet-600" />
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-xs font-semibold text-gray-800">{grn.grnNumber}</td>
+                  <td className="px-3 py-2.5">
+                    <div className="font-medium text-gray-900 text-xs">{grn.poNumber}</div>
+                    <div className="text-gray-400 text-xs">{grn.supplierName}</div>
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-xs text-gray-500">{formatDate(grn.receivedDate)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono text-xs">USD {Number(grn.totalUsd).toFixed(2)}</td>
+                  <td className="px-3 py-2.5">
+                    {grn.hasPostedLCE
+                      ? <span className="text-xs text-amber-600">Allocated ({grn.existingLCE})</span>
+                      : <span className="text-xs text-green-600">Available</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Distribution preview */}
+      {distribution.length > 0 && totalLandedGhs > 0 && (
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-3">
+          <p className="text-xs font-semibold text-blue-700 mb-2">Distribution Preview</p>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-blue-500 border-b border-blue-100">
+                <th className="pb-1 text-left font-normal">GRN</th>
+                <th className="pb-1 text-right font-normal">Value (USD)</th>
+                <th className="pb-1 text-right font-normal">Share</th>
+                <th className="pb-1 text-right font-normal">Allocated (GHS)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {distribution.map((g) => (
+                <tr key={g.id} className="text-blue-800">
+                  <td className="py-0.5 font-mono font-semibold">{g.grnNumber}</td>
+                  <td className="py-0.5 text-right font-mono">USD {Number(g.totalUsd).toFixed(2)}</td>
+                  <td className="py-0.5 text-right">{g.share}%</td>
+                  <td className="py-0.5 text-right font-mono">GHS {Number(g.allocatedGhs).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div>
+        <label className="label text-xs">Notes</label>
+        <textarea className="input resize-none text-sm" rows={2} value={notes}
+          onChange={(e) => setNotes(e.target.value)} placeholder="e.g. April container from Shantex — Bill of Lading #BL-12345" />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-1">
+        <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
+        <button type="button" disabled={!canSubmit || isPending} onClick={() => mutate()} className="btn-primary">
+          {isPending ? <Spinner size="sm" /> : isEdit ? "Save Changes" : "Save as Draft"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Landed Costs tab ──────────────────────────────────────────────────────────
+
+function LandedCostsTab() {
+  const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
+  const [editLce, setEditLce] = useState<LandedCostEntry | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["landed-costs"],
+    queryFn: () => purchasingApi.listLCEs(),
+  });
+  const lces = data?.data ?? [];
+
+  const { mutate: doPost, isPending: posting } = useMutation({
+    mutationFn: (id: string) => purchasingApi.postLCE(id),
+    onSuccess: () => {
+      toast.success("Landed costs posted. Material costs updated.");
+      qc.invalidateQueries({ queryKey: ["landed-costs"] });
+      qc.invalidateQueries({ queryKey: ["materials"] });
+      refetch();
+    },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to post";
+      toast.error(msg);
+    },
+  });
+
+  const totalGhs = (lce: LandedCostEntry) => {
+    const rate = Number(lce.exchangeRate);
+    return Number(lce.freightCostUsd) * rate + Number(lce.clearingCostGhs) + Number(lce.otherLandedGhs);
+  };
+
+  if (isLoading) return <FullPageSpinner />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button className="btn-primary" onClick={() => setShowCreate(true)}>
+          <Plus size={16} /> New Landed Cost Entry
+        </button>
+      </div>
+
+      {lces.length === 0 ? (
+        <EmptyState icon={PackageCheck} title="No landed cost entries"
+          description="After receiving goods, create a landed cost entry to allocate freight and clearing charges across GRNs."
+          action={<button className="btn-primary" onClick={() => setShowCreate(true)}><Plus size={16} /> New Entry</button>} />
+      ) : (
+        <div className="space-y-3">
+          {lces.map((lce) => {
+            const isExpanded = expandedId === lce.id;
+            const total = totalGhs(lce);
+            return (
+              <div key={lce.id} className="card p-0 overflow-hidden">
+                {/* Header row */}
+                <div
+                  onClick={() => setExpandedId(isExpanded ? null : lce.id)}
+                  className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-4">
+                    <span className="font-mono text-sm font-semibold text-gray-800">{lce.lceNumber}</span>
+                    <span className="text-xs text-gray-400">{formatDate(lce.createdAt)}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${lce.status === "POSTED" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                      {lce.status === "POSTED" ? <CheckCircle2 size={11} /> : null}
+                      {lce.status}
+                    </span>
+                    <span className="text-xs text-gray-500">{lce.grns.length} GRN{lce.grns.length !== 1 ? "s" : ""}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className="text-xs text-gray-400">Total Landed Cost</div>
+                      <div className="font-mono text-sm font-semibold text-gray-800">{fmtGhs(total.toFixed(2))}</div>
+                    </div>
+                    {lce.status === "DRAFT" && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditLce(lce); }}
+                          className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
+                          <Pencil size={13} /> Edit
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); doPost(lce.id); }}
+                          disabled={posting}
+                          className="btn-primary text-xs px-3 py-1.5 flex items-center gap-1">
+                          {posting ? <Spinner size="sm" /> : <CheckCircle2 size={13} />}
+                          Post
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                {isExpanded && (
+                  <div className="border-t border-gray-100 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-4 gap-4 text-xs">
+                      <div><span className="text-gray-400">Freight (USD)</span><div className="font-mono font-medium">{fmtUsd(lce.freightCostUsd)}</div></div>
+                      <div><span className="text-gray-400">Exchange Rate</span><div className="font-mono font-medium">GHS {Number(lce.exchangeRate).toFixed(2)}/USD</div></div>
+                      <div><span className="text-gray-400">Port Clearing (GHS)</span><div className="font-mono font-medium">{fmtGhs(lce.clearingCostGhs)}</div></div>
+                      <div><span className="text-gray-400">Other (GHS)</span><div className="font-mono font-medium">{fmtGhs(lce.otherLandedGhs)}</div></div>
+                    </div>
+                    {lce.notes && <p className="text-xs text-gray-500 italic">{lce.notes}</p>}
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-400 border-b border-gray-100">
+                          <th className="pb-1 text-left font-normal">GRN</th>
+                          <th className="pb-1 text-left font-normal">PO / Supplier</th>
+                          <th className="pb-1 text-right font-normal">Received</th>
+                          <th className="pb-1 text-right font-normal">GRN Value (USD)</th>
+                          <th className="pb-1 text-right font-normal">Allocated (GHS)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lce.grns.map((lg) => {
+                          const grnUsd = lg.grn.items.reduce(
+                            (s, i) => s + Number(i.receivedQty) * Number(i.unitCostUsd), 0
+                          );
+                          return (
+                            <tr key={lg.id} className="text-gray-700 border-b border-gray-50">
+                              <td className="py-1 font-mono font-semibold">{lg.grn.grnNumber}</td>
+                              <td className="py-1">
+                                <div>{lg.grn.po.poNumber}</div>
+                                <div className="text-gray-400">{lg.grn.po.supplier.name}</div>
+                              </td>
+                              <td className="py-1 text-right">{formatDate(lg.grn.receivedDate)}</td>
+                              <td className="py-1 text-right font-mono">USD {grnUsd.toFixed(2)}</td>
+                              <td className="py-1 text-right font-mono">
+                                {lce.status === "POSTED"
+                                  ? fmtGhs(lg.allocatedGhs)
+                                  : <span className="text-gray-400 italic">pending post</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showCreate && (
+        <Modal open onClose={() => setShowCreate(false)} title="New Landed Cost Entry" size="xl">
+          <LCEForm
+            onSuccess={() => { setShowCreate(false); qc.invalidateQueries({ queryKey: ["landed-costs"] }); refetch(); }}
+            onCancel={() => setShowCreate(false)}
+          />
+        </Modal>
+      )}
+
+      {editLce && (
+        <Modal open onClose={() => setEditLce(null)} title={`Edit — ${editLce.lceNumber}`} size="xl">
+          <LCEForm
+            lce={editLce}
+            onSuccess={() => { setEditLce(null); qc.invalidateQueries({ queryKey: ["landed-costs"] }); refetch(); }}
+            onCancel={() => setEditLce(null)}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PurchasingPage() {
@@ -710,18 +1053,18 @@ export default function PurchasingPage() {
       <PageHeader
         title="Purchasing"
         subtitle="Manage suppliers and purchase orders"
-        action={
+        action={tab !== "landed-costs" ? (
           <button className="btn-primary" onClick={() => setShowCreate(true)}>
             <Plus size={16} /> {tab === "suppliers" ? "New Supplier" : "New PO"}
           </button>
-        }
+        ) : undefined}
       />
 
       <div className="flex gap-1 border-b border-gray-200">
-        {(["purchase-orders", "suppliers"] as Tab[]).map((key) => (
+        {(["purchase-orders", "suppliers", "landed-costs"] as Tab[]).map((key) => (
           <button key={key} onClick={() => { setTab(key); setPage(1); }}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${tab === key ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700"}`}>
-            {key === "purchase-orders" ? "Purchase Orders" : "Suppliers"}
+            {key === "purchase-orders" ? "Purchase Orders" : key === "suppliers" ? "Suppliers" : "Landed Costs"}
           </button>
         ))}
       </div>
@@ -821,6 +1164,8 @@ export default function PurchasingPage() {
           )}
         </div>
       )}
+
+      {tab === "landed-costs" && <LandedCostsTab />}
 
       {/* Create */}
       <Modal open={showCreate} onClose={() => setShowCreate(false)} title={tab === "suppliers" ? "New Supplier" : "New Purchase Order"} size="lg">

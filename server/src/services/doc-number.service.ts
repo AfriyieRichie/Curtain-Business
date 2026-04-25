@@ -1,6 +1,6 @@
 import { prisma } from "../utils/prisma";
 
-type DocPrefix = "QT" | "ORD" | "INV" | "PO" | "GRN" | "JC";
+type DocPrefix = "QT" | "ORD" | "INV" | "PO" | "GRN" | "JC" | "LCE";
 
 export async function nextDocNumber(prefix: DocPrefix): Promise<string> {
   const year = new Date().getFullYear();

@@ -13,6 +13,7 @@ interface Props { onSuccess: () => void; onCancel: () => void; }
 interface LineItem extends CreateQuoteItem {
   _key: number;
   _calcedPrice?: string;
+  _breakdown?: { mat: number; labour: number; overhead: number };
 }
 
 let keyCounter = 0;
@@ -65,10 +66,10 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
         fullnessRatio: line.fullnessRatio ?? 2.5,
         fabricWidthCm: line.fabricWidthCm ?? 280,
       });
-      const totalCost = (res.data.lines as Array<{ lineCostGhs: string }>).reduce((s, l) => s + Number(l.lineCostGhs), 0);
+      const { totalMatCostGhs, labourCostGhs, overheadCostGhs } = res.data;
+      const totalCost = Number(totalMatCostGhs) + Number(labourCostGhs) + Number(overheadCostGhs);
       const suggested = (totalCost * 1.35).toFixed(2);
-      updateLine(line._key, { _calcedPrice: suggested });
-      toast.success(`Suggested price: GHS ${suggested}`);
+      updateLine(line._key, { _calcedPrice: suggested, _breakdown: { mat: Number(totalMatCostGhs), labour: Number(labourCostGhs), overhead: Number(overheadCostGhs) } });
     } catch {
       toast.error("Calculation failed");
     } finally {
@@ -184,6 +185,15 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
                   Suggest Price
                 </button>
               </div>
+
+              {line._breakdown && (
+                <div className="rounded-lg bg-violet-50 border border-violet-100 px-3 py-2 text-xs text-violet-700 flex flex-wrap gap-4">
+                  <span>Materials: <strong>GHS {line._breakdown.mat.toFixed(2)}</strong></span>
+                  <span>Labour: <strong>GHS {line._breakdown.labour.toFixed(2)}</strong></span>
+                  <span>Overhead: <strong>GHS {line._breakdown.overhead.toFixed(2)}</strong></span>
+                  <span className="font-semibold">Total cost: GHS {(line._breakdown.mat + line._breakdown.labour + line._breakdown.overhead).toFixed(2)} → +35% = GHS {line._calcedPrice}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

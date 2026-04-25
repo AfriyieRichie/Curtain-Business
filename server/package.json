@@ -21,7 +21,8 @@
     "db:push": "prisma db push",
     "db:seed": "ts-node --transpile-only src/prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "db:demo": "ts-node --transpile-only src/prisma/demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",

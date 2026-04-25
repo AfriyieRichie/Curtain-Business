@@ -4,6 +4,7 @@ import { validate } from "../middleware/validate";
 import { authGuard } from "../middleware/authGuard";
 import { rbacGuard } from "../middleware/rbacGuard";
 import * as ctrl from "../controllers/purchasing.controller";
+import * as lceCtrl from "../controllers/landedCosts.controller";
 
 const router = Router();
 
@@ -136,8 +137,62 @@ router.post("/purchase-orders/:id/grns",
   body("items.*.receivedQty").customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   body("items.*.unitCostUsd").customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   body("exchangeRateAtReceipt").optional().isDecimal(),
+  body("freightCostUsd").optional().isFloat({ min: 0 }),
+  body("clearingCostGhs").optional().isFloat({ min: 0 }),
+  body("otherLandedGhs").optional().isFloat({ min: 0 }),
   validate,
   ctrl.createGRN
+);
+
+// ── Landed Cost Entries ───────────────────────────────────────────────────────
+
+router.get("/landed-costs",
+  authGuard, rbacGuard("ACCOUNTS"),
+  lceCtrl.listLCEs
+);
+
+router.get("/landed-costs/available-grns",
+  authGuard, rbacGuard("ACCOUNTS"),
+  lceCtrl.listAvailableGRNs
+);
+
+router.post("/landed-costs",
+  authGuard, rbacGuard("ACCOUNTS"),
+  body("grnIds").isArray({ min: 1 }),
+  body("grnIds.*").isUUID(),
+  body("freightCostUsd").optional().isFloat({ min: 0 }),
+  body("clearingCostGhs").optional().isFloat({ min: 0 }),
+  body("otherLandedGhs").optional().isFloat({ min: 0 }),
+  body("exchangeRate").optional().isDecimal(),
+  validate,
+  lceCtrl.createLCE
+);
+
+router.get("/landed-costs/:id",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  validate,
+  lceCtrl.getLCE
+);
+
+router.patch("/landed-costs/:id",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  body("freightCostUsd").optional().isFloat({ min: 0 }),
+  body("clearingCostGhs").optional().isFloat({ min: 0 }),
+  body("otherLandedGhs").optional().isFloat({ min: 0 }),
+  body("exchangeRate").optional().isDecimal(),
+  body("grnIds").optional().isArray(),
+  body("grnIds.*").optional().isUUID(),
+  validate,
+  lceCtrl.updateLCE
+);
+
+router.post("/landed-costs/:id/post",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  validate,
+  lceCtrl.postLCE
 );
 
 export default router;

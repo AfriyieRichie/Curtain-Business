@@ -136,6 +136,8 @@ export interface BOMTemplate {
   name: string;
   description?: string;
   defaultFullnessRatio: string;
+  labourHours: string;
+  overheadGhs: string;
   isActive: boolean;
   createdAt: string;
   items?: BOMTemplateItem[];

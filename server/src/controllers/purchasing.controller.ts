@@ -299,8 +299,11 @@ export async function listGRNs(req: Request, res: Response) {
 }
 
 export async function createGRN(req: Request, res: Response) {
-  const { exchangeRateAtReceipt, items } = req.body as {
+  const { exchangeRateAtReceipt, items, freightCostUsd, clearingCostGhs, otherLandedGhs } = req.body as {
     exchangeRateAtReceipt?: string;
+    freightCostUsd?: string;
+    clearingCostGhs?: string;
+    otherLandedGhs?: string;
     items: Array<{ poItemId: string; receivedQty: number; unitCostUsd: number }>;
   };
 
@@ -308,17 +311,12 @@ export async function createGRN(req: Request, res: Response) {
   if (!rateRecord) throw new AppError(400, "No exchange rate configured.");
   const rate = exchangeRateAtReceipt ?? rateRecord.rate.toString();
 
-  const po = await prisma.purchaseOrder.findUniqueOrThrow({
-    where: { id: req.params.id },
-    select: { freightCostUsd: true, clearingCostGhs: true, otherLandedGhs: true },
-  });
-
   const grnNumber = await nextDocNumber("GRN");
 
   const landedCosts = {
-    freightCostUsd: po.freightCostUsd.toString(),
-    clearingCostGhs: po.clearingCostGhs.toString(),
-    otherLandedGhs: po.otherLandedGhs.toString(),
+    freightCostUsd: freightCostUsd ?? "0",
+    clearingCostGhs: clearingCostGhs ?? "0",
+    otherLandedGhs: otherLandedGhs ?? "0",
   };
 
   const result = await receiveGRN(req.params.id, grnNumber, rate, items, req.auth!.userId, landedCosts);

@@ -95,6 +95,126 @@ export async function adjustStock(
 }
 
 /**
+ * Posts a Landed Cost Entry — distributes freight/clearing costs across selected GRNs
+ * proportionally by each GRN's total USD value, then adjusts material WAC.
+ * Idempotent-safe: throws if already posted.
+ */
+export async function postLandedCostEntry(lceId: string, userId: string) {
+  return prisma.$transaction(async (tx) => {
+    const lce = await tx.landedCostEntry.findUniqueOrThrow({
+      where: { id: lceId },
+      include: {
+        grns: {
+          include: {
+            grn: {
+              include: {
+                items: { include: { material: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (lce.status === "POSTED") throw new AppError(400, "This landed cost entry has already been posted.");
+    if (lce.grns.length === 0) throw new AppError(400, "No GRNs linked to this entry.");
+
+    const rate = new Decimal(lce.exchangeRate.toString());
+    const totalLandedGhs = new Decimal(lce.freightCostUsd.toString()).mul(rate)
+      .plus(lce.clearingCostGhs.toString())
+      .plus(lce.otherLandedGhs.toString());
+
+    if (totalLandedGhs.lte(0)) throw new AppError(400, "Total landed cost is zero — nothing to post.");
+
+    const markupSetting = await tx.businessSetting.findUnique({ where: { key: "currency.markupRatio" } });
+    const markup = new Decimal(markupSetting?.value ?? "0.35");
+
+    // Calculate each GRN's USD value for proportional distribution
+    const grnValues = lce.grns.map((lg) => ({
+      lg,
+      valueUsd: lg.grn.items.reduce(
+        (s, i) => s.plus(new Decimal(i.unitCostUsd.toString()).mul(new Decimal(i.receivedQty.toString()))),
+        new Decimal(0)
+      ),
+    }));
+    const totalValueUsd = grnValues.reduce((s, g) => s.plus(g.valueUsd), new Decimal(0));
+
+    for (const { lg, valueUsd } of grnValues) {
+      const grnShare = totalValueUsd.gt(0)
+        ? valueUsd.div(totalValueUsd)
+        : new Decimal(1).div(lce.grns.length);
+      const grnLandedGhs = totalLandedGhs.mul(grnShare);
+
+      // Persist the allocated amount on the join record
+      await tx.landedCostGRN.update({
+        where: { id: lg.id },
+        data: { allocatedGhs: grnLandedGhs },
+      });
+
+      // Update the GRN's own landed cost fields (for display and PDF)
+      await tx.goodsReceivedNote.update({
+        where: { id: lg.grnId },
+        data: {
+          freightCostUsd: new Decimal(lce.freightCostUsd.toString()).mul(grnShare),
+          clearingCostGhs: new Decimal(lce.clearingCostGhs.toString()).mul(grnShare),
+          otherLandedGhs: new Decimal(lce.otherLandedGhs.toString()).mul(grnShare),
+        },
+      });
+
+      // Distribute this GRN's allocation across its items proportionally by line USD value
+      for (const item of lg.grn.items) {
+        const lineUsd = new Decimal(item.unitCostUsd.toString()).mul(new Decimal(item.receivedQty.toString()));
+        const itemShare = valueUsd.gt(0) ? lineUsd.div(valueUsd) : new Decimal(1).div(lg.grn.items.length);
+        const itemLandedGhs = grnLandedGhs.mul(itemShare);
+        const landedPerUnit = new Decimal(item.receivedQty.toString()).gt(0)
+          ? itemLandedGhs.div(new Decimal(item.receivedQty.toString()))
+          : new Decimal(0);
+
+        // Update the GRN item's GHS cost to include landed allocation
+        await tx.goodsReceivedItem.update({
+          where: { id: item.id },
+          data: { unitCostGhs: new Decimal(item.unitCostGhs.toString()).plus(landedPerUnit) },
+        });
+
+        // Adjust material WAC: add landed cost per unit to current weighted average
+        const currentCostGhs = new Decimal(item.material.unitCostGhs.toString());
+        const newUnitCostGhs = currentCostGhs.plus(landedPerUnit);
+        await tx.material.update({
+          where: { id: item.materialId },
+          data: {
+            unitCostGhs: newUnitCostGhs,
+            sellingPriceGhs: applyMarkup(newUnitCostGhs, markup),
+          },
+        });
+
+        // Audit trail: zero-quantity movement records the cost adjustment
+        await tx.stockMovement.create({
+          data: {
+            materialId: item.materialId,
+            movementType: "LANDED_COST_ADJUSTMENT",
+            quantity: new Decimal(0),
+            unitCostUsd: new Decimal(0),
+            unitCostGhs: landedPerUnit,
+            exchangeRateAtMovement: rate,
+            referenceId: lce.id,
+            referenceType: "LCE",
+            notes: `Landed cost allocation from ${lce.lceNumber}`,
+            createdById: userId,
+          },
+        });
+      }
+    }
+
+    await tx.landedCostEntry.update({
+      where: { id: lceId },
+      data: { status: "POSTED", postedAt: new Date() },
+    });
+
+    return lce;
+  });
+}
+
+/**
  * Receives a GRN — updates stock, updates material costs, closes PO line if fully received.
  * Runs entirely in a single atomic transaction.
  */
@@ -134,6 +254,9 @@ export async function receiveGRN(
         poId,
         receivedDate: new Date(),
         exchangeRateAtReceipt: rate,
+        freightCostUsd: landedCosts ? new Decimal(landedCosts.freightCostUsd) : new Decimal(0),
+        clearingCostGhs: landedCosts ? new Decimal(landedCosts.clearingCostGhs) : new Decimal(0),
+        otherLandedGhs: landedCosts ? new Decimal(landedCosts.otherLandedGhs) : new Decimal(0),
         createdById: userId,
       },
     });
