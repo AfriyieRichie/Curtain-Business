@@ -133,14 +133,8 @@ export async function createQuote(req: Request, res: Response) {
         const bomResult = calculateBOM(bomItems, input, rate);
         const bomSnapshot = serializeBOMSnapshot(bomResult);
 
-        // Compute material cost from BOM
-        let matCostGhs = new Decimal(0);
-        for (const line of bomResult.lines) {
-          const mat = template.items.find((ti) => ti.materialId === line.materialId)!.material;
-          matCostGhs = matCostGhs.plus(
-            new Decimal(line.quantity.toString()).mul(new Decimal(mat.unitCostGhs.toString()))
-          );
-        }
+        // Use the already-computed total which accounts for fabric/lining substitutions
+        const matCostGhs = bomResult.totalMaterialCostGhs;
 
         // Labour + overhead from template and global settings
         const [markupSetting, labourRateSetting, overheadRateSetting] = await Promise.all([
