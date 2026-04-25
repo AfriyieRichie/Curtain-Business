@@ -259,12 +259,18 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
     };
   });
 
-  const labourRateSetting = await prisma.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } });
+  const [labourRateSetting, overheadRateSetting] = await Promise.all([
+    prisma.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } }),
+    prisma.businessSetting.findUnique({ where: { key: "production.overheadRateGhs" } }),
+  ]);
   const labourRate = new Decimal(labourRateSetting?.value ?? "0");
+  const overheadRate = new Decimal(overheadRateSetting?.value ?? "0");
+  const labourHours = new Decimal(template.labourHours.toString());
 
   const totalMatCostGhs = enriched.reduce((s, l) => s.plus(new Decimal(l.lineCostGhs)), new Decimal(0));
-  const labourCostGhs = new Decimal(template.labourHours.toString()).mul(labourRate);
-  const overheadCostGhs = new Decimal(template.overheadGhs.toString());
+  const labourCostGhs = labourHours.mul(labourRate);
+  // Overhead = rate-based (electricity/rent apportioned per labour hour) + any fixed template overhead
+  const overheadCostGhs = labourHours.mul(overheadRate).plus(new Decimal(template.overheadGhs.toString()));
 
   sendSuccess(res, {
     input,

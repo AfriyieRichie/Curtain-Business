@@ -279,19 +279,19 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
       </div>
 
       <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 space-y-2">
-        <p className="text-xs font-semibold text-amber-800">Production Costs <span className="font-normal text-amber-600">(used in quote pricing alongside material cost)</span></p>
+        <p className="text-xs font-semibold text-amber-800">Production Time <span className="font-normal text-amber-600">— labour &amp; overhead rates are configured globally in Settings</span></p>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="label text-xs">Labour Hours per Panel</label>
             <input className="input py-1.5 text-sm" type="number" min="0" step="0.25" value={labourHours}
               onChange={(e) => setLabourHours(e.target.value)} placeholder="e.g. 2.5" />
-            <p className="text-xs text-amber-600 mt-0.5">Multiplied by the labour rate set in Settings</p>
+            <p className="text-xs text-amber-600 mt-0.5">Hours × Labour Rate from Settings = labour cost</p>
           </div>
           <div>
-            <label className="label text-xs">Overhead per Panel (GHS)</label>
+            <label className="label text-xs">Fixed Overhead per Panel (GHS) <span className="font-normal">— optional</span></label>
             <input className="input py-1.5 text-sm" type="number" min="0" step="0.01" value={overheadGhs}
-              onChange={(e) => setOverheadGhs(e.target.value)} placeholder="e.g. 30.00" />
-            <p className="text-xs text-amber-600 mt-0.5">Fixed overhead cost added to each panel</p>
+              onChange={(e) => setOverheadGhs(e.target.value)} placeholder="e.g. 5.00" />
+            <p className="text-xs text-amber-600 mt-0.5">Panel-specific fixed cost only. Factory overhead (electricity, rent) is apportioned via Settings.</p>
           </div>
         </div>
       </div>

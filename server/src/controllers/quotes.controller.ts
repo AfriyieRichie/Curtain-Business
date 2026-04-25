@@ -141,15 +141,18 @@ export async function createQuote(req: Request, res: Response) {
           );
         }
 
-        // Labour + overhead from template
-        const [markupSetting, labourRateSetting] = await Promise.all([
+        // Labour + overhead from template and global settings
+        const [markupSetting, labourRateSetting, overheadRateSetting] = await Promise.all([
           tx.businessSetting.findUnique({ where: { key: "currency.markupRatio" } }),
           tx.businessSetting.findUnique({ where: { key: "production.labourRateGhs" } }),
+          tx.businessSetting.findUnique({ where: { key: "production.overheadRateGhs" } }),
         ]);
         const markup = new Decimal(markupSetting?.value ?? "0.35");
         const labourRate = new Decimal(labourRateSetting?.value ?? "0");
-        const labourCostGhs = new Decimal(template.labourHours.toString()).mul(labourRate);
-        const overheadCostGhs = new Decimal(template.overheadGhs.toString());
+        const overheadRate = new Decimal(overheadRateSetting?.value ?? "0");
+        const labourHoursD = new Decimal(template.labourHours.toString());
+        const labourCostGhs = labourHoursD.mul(labourRate);
+        const overheadCostGhs = labourHoursD.mul(overheadRate).plus(new Decimal(template.overheadGhs.toString()));
         const totalCostGhs = matCostGhs.plus(labourCostGhs).plus(overheadCostGhs);
 
         const unitPriceGhs = item.unitPriceGhs

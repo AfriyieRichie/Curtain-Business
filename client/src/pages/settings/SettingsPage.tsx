@@ -22,8 +22,16 @@ const LABEL: Record<string, string> = {
   "business.phone": "Phone",
   "business.email": "Email",
   "business.address": "Address",
-  "currency.markupRatio": "Default Markup Ratio",
+  "currency.markupRatio": "Default Markup Ratio (e.g. 0.35 = 35%)",
   "tax.vatRate": "VAT Rate (e.g. 0.20 = 20%)",
+  "production.labourRateGhs": "Labour Rate (GHS per hour)",
+  "production.overheadRateGhs": "Overhead Rate (GHS per labour hour)",
+};
+
+const HINTS: Record<string, string> = {
+  "currency.markupRatio": "Applied on top of total cost (materials + labour + overhead) to suggest selling price.",
+  "production.labourRateGhs": "How much a worker costs per hour. Multiplied by Labour Hours on each BOM template to get labour cost per panel.",
+  "production.overheadRateGhs": "Apportions factory overhead (electricity, rent, consumables) per labour hour. E.g. if your total monthly overhead is GHS 2,000 and you produce 200 hours of work per month, set this to 10. Overhead per panel = Labour Hours × this rate.",
 };
 
 function GeneralSettings({ settings }: { settings: BusinessSetting[] }) {
@@ -39,21 +47,37 @@ function GeneralSettings({ settings }: { settings: BusinessSetting[] }) {
     onError: () => toast.error("Failed to save settings"),
   });
 
-  const displayedKeys = [...GENERAL_KEYS, "currency.markupRatio", "tax.vatRate"];
-
   return (
-    <div className="card max-w-lg space-y-4">
-      <h2 className="text-base font-semibold text-gray-900">Business Information</h2>
-      {displayedKeys.map((key) => (
-        <div key={key}>
-          <label className="label">{LABEL[key] ?? key}</label>
-          <input
-            className="input"
-            value={values[key] ?? ""}
-            onChange={(e) => setValues((p) => ({ ...p, [key]: e.target.value }))}
-          />
+    <div className="space-y-5 max-w-lg">
+      <div className="card space-y-4">
+        <h2 className="text-base font-semibold text-gray-900">Business Information</h2>
+        {[...GENERAL_KEYS, "currency.markupRatio", "tax.vatRate"].map((key) => (
+          <div key={key}>
+            <label className="label">{LABEL[key] ?? key}</label>
+            <input className="input" value={values[key] ?? ""} onChange={(e) => setValues((p) => ({ ...p, [key]: e.target.value }))} />
+            {HINTS[key] && <p className="text-xs text-gray-400 mt-0.5">{HINTS[key]}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Production Costs</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Used in BOM pricing to suggest a selling price for each quote line.</p>
         </div>
-      ))}
+        {["production.labourRateGhs", "production.overheadRateGhs"].map((key) => (
+          <div key={key}>
+            <label className="label">{LABEL[key]}</label>
+            <input className="input" type="number" min="0" step="0.01" value={values[key] ?? ""} onChange={(e) => setValues((p) => ({ ...p, [key]: e.target.value }))} placeholder="0.00" />
+            <p className="text-xs text-gray-400 mt-0.5">{HINTS[key]}</p>
+          </div>
+        ))}
+        <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5 text-xs text-amber-800 space-y-1">
+          <p className="font-semibold">How overhead apportionment works</p>
+          <p>Your monthly factory costs (electricity, rent, maintenance) are spread across panels by labour hours. If your shop costs GHS 2,000/month and your team works 200 hours/month, set <strong>Overhead Rate = 10</strong>. A panel that takes 2 hours of labour gets GHS 20 in overhead added to its cost.</p>
+        </div>
+      </div>
+
       <button onClick={() => mutate()} disabled={isPending} className="btn-primary">
         {isPending ? <Spinner size="sm" /> : "Save Settings"}
       </button>
