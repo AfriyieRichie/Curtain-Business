@@ -93,7 +93,7 @@ export async function createTemplate(req: Request, res: Response) {
     defaultFullnessRatio?: string;
     labourHours?: number;
     overheadGhs?: number;
-    items: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
+    items: Array<{ materialId: string; quantityFormula: string; role?: string; notes?: string; sortOrder?: number }>;
   };
 
   for (const item of items) {
@@ -114,6 +114,7 @@ export async function createTemplate(req: Request, res: Response) {
         create: items.map((item, idx) => ({
           materialId: item.materialId,
           quantityFormula: item.quantityFormula,
+          role: (item.role as "FIXED" | "FABRIC" | "LINING") ?? "FIXED",
           notes: item.notes,
           sortOrder: item.sortOrder ?? idx + 1,
         })),
@@ -134,7 +135,7 @@ export async function updateTemplate(req: Request, res: Response) {
     defaultFullnessRatio?: string;
     labourHours?: number;
     overheadGhs?: number;
-    items?: Array<{ materialId: string; quantityFormula: string; notes?: string; sortOrder?: number }>;
+    items?: Array<{ materialId: string; quantityFormula: string; role?: string; notes?: string; sortOrder?: number }>;
   };
 
   if (items) {
@@ -165,6 +166,7 @@ export async function updateTemplate(req: Request, res: Response) {
             create: items.map((item, idx) => ({
               materialId: item.materialId,
               quantityFormula: item.quantityFormula,
+              role: (item.role as "FIXED" | "FABRIC" | "LINING") ?? "FIXED",
               notes: item.notes,
               sortOrder: item.sortOrder ?? idx + 1,
             })),
@@ -189,8 +191,9 @@ export async function deleteTemplate(req: Request, res: Response) {
 // ── BOM Calculation ───────────────────────────────────────────────────────────
 
 export async function calculateBOMForTemplate(req: Request, res: Response) {
-  const { widthCm, dropCm, fullnessRatio, fabricWidthCm } = req.body as {
+  const { widthCm, dropCm, fullnessRatio, fabricWidthCm, fabricMaterialId, liningMaterialId } = req.body as {
     widthCm: number; dropCm: number; fullnessRatio?: number; fabricWidthCm?: number;
+    fabricMaterialId?: string; liningMaterialId?: string;
   };
 
   const template = await prisma.bOMTemplate.findUniqueOrThrow({
@@ -201,15 +204,27 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
     },
   });
 
-  const bomItems = template.items.map((item) => ({
-    materialId: item.materialId,
-    materialCode: item.material.code,
-    description: item.material.name,
-    quantityFormula: item.quantityFormula,
-    unit: item.material.unit,
-    unitCostUsd: item.material.unitCostUsd,
-    unitCostGhs: item.material.unitCostGhs,
-  }));
+  // Fetch substitution materials if provided
+  const [fabricMat, liningMat] = await Promise.all([
+    fabricMaterialId ? prisma.material.findUnique({ where: { id: fabricMaterialId } }) : null,
+    liningMaterialId ? prisma.material.findUnique({ where: { id: liningMaterialId } }) : null,
+  ]);
+
+  const bomItems = template.items.map((item) => {
+    let mat = item.material;
+    if (item.role === "FABRIC" && fabricMat) mat = fabricMat;
+    if (item.role === "LINING" && liningMat) mat = liningMat;
+    return {
+      materialId: mat.id,
+      materialCode: mat.code,
+      description: mat.name,
+      quantityFormula: item.quantityFormula,
+      unit: mat.unit,
+      unitCostUsd: mat.unitCostUsd,
+      unitCostGhs: mat.unitCostGhs,
+      _role: item.role,
+    };
+  });
 
   const input = {
     widthCm,
@@ -221,22 +236,24 @@ export async function calculateBOMForTemplate(req: Request, res: Response) {
   const result = calculateBOM(bomItems, input, 1);
 
   const enriched = result.lines.map((line) => {
-    const templateItem = template.items.find((i) => i.materialId === line.materialId)!;
+    const bomItem = bomItems.find((i) => i.materialId === line.materialId)!;
+    const templateItem = template.items.find((i) => i.materialId === line.materialId || (i.role === "FABRIC" && bomItem._role === "FABRIC") || (i.role === "LINING" && bomItem._role === "LINING"))!;
     return {
       ...line,
+      role: templateItem.role,
       material: {
-        code: templateItem.material.code,
-        name: templateItem.material.name,
-        unit: templateItem.material.unit,
-        unitCostUsd: templateItem.material.unitCostUsd,
-        unitCostGhs: templateItem.material.unitCostGhs,
+        code: bomItem.materialCode,
+        name: bomItem.description,
+        unit: bomItem.unit,
+        unitCostUsd: bomItem.unitCostUsd,
+        unitCostGhs: bomItem.unitCostGhs,
       },
       lineCostUsd: new Decimal(line.quantity.toString())
-        .mul(new Decimal(templateItem.material.unitCostUsd.toString()))
+        .mul(new Decimal(bomItem.unitCostUsd.toString()))
         .toDecimalPlaces(4)
         .toString(),
       lineCostGhs: new Decimal(line.quantity.toString())
-        .mul(new Decimal(templateItem.material.unitCostGhs.toString()))
+        .mul(new Decimal(bomItem.unitCostGhs.toString()))
         .toDecimalPlaces(4)
         .toString(),
     };

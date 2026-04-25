@@ -60,6 +60,7 @@ router.post("/templates",
   body("items").isArray({ min: 1 }),
   body("items.*.materialId").isUUID(),
   body("items.*.quantityFormula").isString().notEmpty(),
+  body("items.*.role").optional().isIn(["FIXED", "FABRIC", "LINING"]),
   body("items.*.notes").optional().isString(),
   validate,
   ctrl.createTemplate
@@ -72,6 +73,7 @@ router.patch("/templates/:id",
   body("items").optional().isArray({ min: 1 }),
   body("items.*.materialId").optional().isUUID(),
   body("items.*.quantityFormula").optional().isString().notEmpty(),
+  body("items.*.role").optional().isIn(["FIXED", "FABRIC", "LINING"]),
   validate,
   ctrl.updateTemplate
 );
@@ -92,6 +94,8 @@ router.post("/templates/:id/calculate",
   body("dropCm").customSanitizer((v) => Number(v)).isFloat({ min: 0.01 }),
   body("fullnessRatio").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
   body("fabricWidthCm").optional().customSanitizer((v) => Number(v)).isFloat({ min: 0 }),
+  body("fabricMaterialId").optional().isUUID(),
+  body("liningMaterialId").optional().isUUID(),
   validate,
   ctrl.calculateBOMForTemplate
 );

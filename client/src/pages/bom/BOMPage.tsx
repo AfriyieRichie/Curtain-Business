@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, FileText, Calculator, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { bomApi, type BOMItemPayload } from "@/api/bom";
+import type { BOMLineRole } from "@/types";
 import { inventoryApi } from "@/api/inventory";
 import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
@@ -198,8 +199,19 @@ function FormulaBuilder({ value, onChange }: { value: string; onChange: (v: stri
 
 let itemKey = 0;
 function newItem(): BOMItemPayload & { _key: number } {
-  return { _key: ++itemKey, materialId: "", quantityFormula: "", notes: "", sortOrder: itemKey };
+  return { _key: ++itemKey, materialId: "", quantityFormula: "", role: "FIXED", notes: "", sortOrder: itemKey };
 }
+
+const ROLE_LABELS: Record<BOMLineRole, string> = {
+  FIXED: "Fixed material",
+  FABRIC: "Fabric (from quote)",
+  LINING: "Lining (from quote)",
+};
+const ROLE_COLORS: Record<BOMLineRole, string> = {
+  FIXED: "bg-gray-100 text-gray-700",
+  FABRIC: "bg-violet-100 text-violet-700",
+  LINING: "bg-blue-100 text-blue-700",
+};
 
 function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
   template?: BOMTemplate; curtainTypes: CurtainType[]; onSuccess: () => void; onCancel: () => void;
@@ -211,7 +223,7 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
   const [labourHours, setLabourHours] = useState(template ? String(Number(template.labourHours) || "") : "");
   const [overheadGhs, setOverheadGhs] = useState(template ? String(Number(template.overheadGhs) || "") : "");
   const [items, setItems] = useState<(BOMItemPayload & { _key: number })[]>(
-    template?.items?.map((i, idx) => ({ _key: ++itemKey, materialId: i.materialId, quantityFormula: i.quantityFormula, notes: i.notes ?? "", sortOrder: idx })) ?? [newItem()]
+    template?.items?.map((i, idx) => ({ _key: ++itemKey, materialId: i.materialId, quantityFormula: i.quantityFormula, role: i.role ?? "FIXED", notes: i.notes ?? "", sortOrder: idx })) ?? [newItem()]
   );
 
   const { data: materialsData } = useQuery({ queryKey: ["materials-all"], queryFn: () => inventoryApi.getMaterials({ page: 1, limit: 500 }), staleTime: 5 * 60_000 });
@@ -310,6 +322,20 @@ function TemplateForm({ template, curtainTypes, onSuccess, onCancel }: {
                 <button type="button" onClick={() => setItems((p) => p.filter((i) => i._key !== item._key))} disabled={items.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 mt-5 shrink-0">
                   <Trash2 size={14} />
                 </button>
+              </div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs text-gray-500">Role:</span>
+                {(["FIXED", "FABRIC", "LINING"] as BOMLineRole[]).map((r) => (
+                  <button key={r} type="button" onClick={() => updateItem(item._key, "role", r)}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${item.role === r ? ROLE_COLORS[r] : "bg-white text-gray-400 border border-gray-200 hover:border-gray-400"}`}>
+                    {ROLE_LABELS[r]}
+                  </button>
+                ))}
+                {item.role !== "FIXED" && (
+                  <span className="ml-1 text-xs text-gray-400 italic">
+                    {item.role === "FABRIC" ? "Material chosen by quote" : "Lining chosen by quote"}
+                  </span>
+                )}
               </div>
               <div>
                 <label className="label text-xs">Quantity Formula *</label>

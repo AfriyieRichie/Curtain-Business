@@ -101,15 +101,26 @@ export async function createQuote(req: Request, res: Response) {
           },
         });
 
-        const bomItems = template.items.map((ti) => ({
-          materialId: ti.materialId,
-          materialCode: ti.material.code,
-          description: ti.material.name,
-          quantityFormula: ti.quantityFormula,
-          unit: ti.material.unit,
-          unitCostUsd: ti.material.unitCostUsd,
-          unitCostGhs: ti.material.unitCostGhs,
-        }));
+        // Fetch substitution materials for FABRIC / LINING roles
+        const [fabricMat, liningMat] = await Promise.all([
+          item.fabricMaterialId ? tx.material.findUnique({ where: { id: item.fabricMaterialId } }) : null,
+          item.liningMaterialId ? tx.material.findUnique({ where: { id: item.liningMaterialId } }) : null,
+        ]);
+
+        const bomItems = template.items.map((ti) => {
+          let mat: typeof ti.material = ti.material;
+          if (ti.role === "FABRIC" && fabricMat) mat = fabricMat;
+          if (ti.role === "LINING" && liningMat) mat = liningMat;
+          return {
+            materialId: mat.id,
+            materialCode: mat.code,
+            description: mat.name,
+            quantityFormula: ti.quantityFormula,
+            unit: mat.unit,
+            unitCostUsd: mat.unitCostUsd,
+            unitCostGhs: mat.unitCostGhs,
+          };
+        });
 
         const input = {
           widthCm: item.widthCm,

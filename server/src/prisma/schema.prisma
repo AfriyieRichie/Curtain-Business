@@ -55,6 +55,12 @@ enum LCEStatus {
   POSTED
 }
 
+enum BOMLineRole {
+  FIXED
+  FABRIC
+  LINING
+}
+
 enum POStatus {
   DRAFT
   SENT
@@ -395,12 +401,13 @@ model BOMTemplate {
 }
 
 model BOMTemplateItem {
-  id              String @id @default(uuid())
-  bomTemplateId   String @map("bom_template_id")
-  materialId      String @map("material_id")
-  quantityFormula String @map("quantity_formula")
+  id              String      @id @default(uuid())
+  bomTemplateId   String      @map("bom_template_id")
+  materialId      String      @map("material_id")
+  quantityFormula String      @map("quantity_formula")
+  role            BOMLineRole @default(FIXED)
   notes           String?
-  sortOrder       Int    @default(0) @map("sort_order")
+  sortOrder       Int         @default(0) @map("sort_order")
 
   bomTemplate BOMTemplate @relation(fields: [bomTemplateId], references: [id], onDelete: Cascade)
   material    Material    @relation(fields: [materialId], references: [id])

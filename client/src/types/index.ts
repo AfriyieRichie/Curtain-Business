@@ -119,12 +119,15 @@ export interface CurtainType {
   isActive: boolean;
 }
 
+export type BOMLineRole = "FIXED" | "FABRIC" | "LINING";
+
 export interface BOMTemplateItem {
   id: string;
   bomTemplateId: string;
   materialId: string;
   material?: Pick<Material, "id" | "code" | "name" | "unit" | "unitCostUsd" | "unitCostGhs">;
   quantityFormula: string;
+  role: BOMLineRole;
   notes?: string;
   sortOrder: number;
 }

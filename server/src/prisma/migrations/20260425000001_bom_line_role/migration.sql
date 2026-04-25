@@ -1,0 +1,2 @@
+CREATE TYPE "BOMLineRole" AS ENUM ('FIXED', 'FABRIC', 'LINING');
+ALTER TABLE "bom_template_items" ADD COLUMN "role" "BOMLineRole" NOT NULL DEFAULT 'FIXED';

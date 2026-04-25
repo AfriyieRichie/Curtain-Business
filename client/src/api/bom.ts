@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import type { ApiResponse, BOMTemplate, CurtainType } from "@/types";
+import type { ApiResponse, BOMTemplate, CurtainType, BOMLineRole } from "@/types";
 
 export interface BOMCalculateRequest {
   bomTemplateId: string;
@@ -7,9 +7,11 @@ export interface BOMCalculateRequest {
   dropCm: number;
   fullnessRatio: number;
   fabricWidthCm: number;
+  fabricMaterialId?: string;
+  liningMaterialId?: string;
 }
 
-export interface BOMItemPayload { materialId: string; quantityFormula: string; notes?: string; sortOrder?: number; }
+export interface BOMItemPayload { materialId: string; quantityFormula: string; role?: BOMLineRole; notes?: string; sortOrder?: number; }
 export interface BOMTemplatePayload { curtainTypeId: string; name: string; description?: string; defaultFullnessRatio?: string; labourHours?: number; overheadGhs?: number; items: BOMItemPayload[]; }
 
 export interface BOMCalculateResult {
@@ -52,5 +54,7 @@ export const bomApi = {
       dropCm: data.dropCm,
       fullnessRatio: data.fullnessRatio,
       fabricWidthCm: data.fabricWidthCm,
+      fabricMaterialId: data.fabricMaterialId,
+      liningMaterialId: data.liningMaterialId,
     }).then((r) => r.data),
 };

@@ -14,11 +14,12 @@ interface LineItem extends CreateQuoteItem {
   _key: number;
   _calcedPrice?: string;
   _breakdown?: { mat: number; labour: number; overhead: number };
+  _hasLining?: boolean;
 }
 
 let keyCounter = 0;
 function newLine(): LineItem {
-  return { _key: ++keyCounter, curtainTypeId: "", bomTemplateId: "", windowLabel: "", fabricMaterialId: "", widthCm: 200, dropCm: 230, quantity: 1, fullnessRatio: 2.5, fabricWidthCm: 280 };
+  return { _key: ++keyCounter, curtainTypeId: "", bomTemplateId: "", windowLabel: "", fabricMaterialId: "", liningMaterialId: undefined, widthCm: 200, dropCm: 230, quantity: 1, fullnessRatio: 2.5, fabricWidthCm: 280 };
 }
 
 export default function QuoteForm({ onSuccess, onCancel }: Props) {
@@ -42,7 +43,7 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
       customerId,
       validUntil: validUntil || undefined,
       notes: notes || undefined,
-      items: lines.map(({ _key, _calcedPrice, ...item }) => ({ ...item, unitPriceGhs: _calcedPrice || undefined })),
+      items: lines.map(({ _key, _calcedPrice, _breakdown, _hasLining, ...item }) => ({ ...item, unitPriceGhs: _calcedPrice || undefined })),
     }),
     onSuccess: () => { toast.success("Quote created"); onSuccess(); },
     onError: (e: unknown) => {
@@ -65,6 +66,8 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
         dropCm: line.dropCm,
         fullnessRatio: line.fullnessRatio ?? 2.5,
         fabricWidthCm: line.fabricWidthCm ?? 280,
+        fabricMaterialId: line.fabricMaterialId || undefined,
+        liningMaterialId: line.liningMaterialId || undefined,
       });
       const { totalMatCostGhs, labourCostGhs, overheadCostGhs } = res.data;
       const totalCost = Number(totalMatCostGhs) + Number(labourCostGhs) + Number(overheadCostGhs);
@@ -122,13 +125,6 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
                   <input className="input" placeholder="e.g. Living Room Left" value={line.windowLabel} onChange={(e) => updateLine(line._key, { windowLabel: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">Fabric Material *</label>
-                  <select className="input" value={line.fabricMaterialId} onChange={(e) => updateLine(line._key, { fabricMaterialId: e.target.value })} disabled={materialsLoading}>
-                    <option value="">{materialsLoading ? "Loading…" : materials.length === 0 ? "No materials — add in Inventory first" : "Select fabric…"}</option>
-                    {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
-                  </select>
-                </div>
-                <div>
                   <label className="label">Curtain Type *</label>
                   <select className="input" value={line.curtainTypeId} onChange={(e) => updateLine(line._key, { curtainTypeId: e.target.value, bomTemplateId: "" })}>
                     <option value="">Select type…</option>
@@ -142,6 +138,27 @@ export default function QuoteForm({ onSuccess, onCancel }: Props) {
                     {templatesForType(line.curtainTypeId).map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="label">Fabric Material *</label>
+                  <select className="input" value={line.fabricMaterialId} onChange={(e) => updateLine(line._key, { fabricMaterialId: e.target.value })} disabled={materialsLoading}>
+                    <option value="">{materialsLoading ? "Loading…" : materials.length === 0 ? "No materials — add in Inventory first" : "Select fabric…"}</option>
+                    {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer w-fit">
+                  <input type="checkbox" className="accent-blue-600" checked={!!line._hasLining}
+                    onChange={(e) => updateLine(line._key, { _hasLining: e.target.checked, liningMaterialId: e.target.checked ? line.liningMaterialId : undefined })} />
+                  <span className="text-xs text-gray-600">This panel has a lining material (set LINING role on BOM template)</span>
+                </label>
+                {line._hasLining && (
+                  <select className="input" value={line.liningMaterialId ?? ""} onChange={(e) => updateLine(line._key, { liningMaterialId: e.target.value || undefined })} disabled={materialsLoading}>
+                    <option value="">Select lining…</option>
+                    {materials.map((m) => <option key={m.id} value={m.id}>{m.code} — {m.name}</option>)}
+                  </select>
+                )}
               </div>
 
               <div className="grid grid-cols-4 gap-3">
