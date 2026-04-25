@@ -26,6 +26,9 @@ const LABEL: Record<string, string> = {
   "tax.vatRate": "VAT Rate (e.g. 0.20 = 20%)",
   "production.labourRateGhs": "Labour Rate (GHS per hour)",
   "production.overheadRateGhs": "Overhead Rate (GHS per labour hour)",
+  "approval.expenseThresholdGhs": "Expense Approval Threshold (GHS)",
+  "approval.quoteDiscountThresholdPct": "Quote Discount Approval Threshold (%)",
+  "approval.orderTotalThresholdGhs": "Order Total Approval Threshold (GHS)",
 };
 
 const HINTS: Record<string, string> = {
@@ -75,6 +78,28 @@ function GeneralSettings({ settings }: { settings: BusinessSetting[] }) {
         <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5 text-xs text-amber-800 space-y-1">
           <p className="font-semibold">How overhead apportionment works</p>
           <p>Your monthly factory costs (electricity, rent, maintenance) are spread across panels by labour hours. If your shop costs GHS 2,000/month and your team works 200 hours/month, set <strong>Overhead Rate = 10</strong>. A panel that takes 2 hours of labour gets GHS 20 in overhead added to its cost.</p>
+        </div>
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">Approval Thresholds</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Requests above these limits will require admin/accounts approval before proceeding.</p>
+        </div>
+        <div>
+          <label className="label">{LABEL["approval.expenseThresholdGhs"]}</label>
+          <input className="input" type="number" min="0" step="1" value={values["approval.expenseThresholdGhs"] ?? "500"} onChange={(e) => setValues((p) => ({ ...p, "approval.expenseThresholdGhs": e.target.value }))} placeholder="500" />
+          <p className="text-xs text-gray-400 mt-0.5">Expenses above this amount will be held pending approval.</p>
+        </div>
+        <div>
+          <label className="label">{LABEL["approval.quoteDiscountThresholdPct"]}</label>
+          <input className="input" type="number" min="0" max="100" step="1" value={values["approval.quoteDiscountThresholdPct"] ?? "10"} onChange={(e) => setValues((p) => ({ ...p, "approval.quoteDiscountThresholdPct": e.target.value }))} placeholder="10" />
+          <p className="text-xs text-gray-400 mt-0.5">Quotes with a discount above this % will require approval before converting to order.</p>
+        </div>
+        <div>
+          <label className="label">{LABEL["approval.orderTotalThresholdGhs"]}</label>
+          <input className="input" type="number" min="0" step="100" value={values["approval.orderTotalThresholdGhs"] ?? "5000"} onChange={(e) => setValues((p) => ({ ...p, "approval.orderTotalThresholdGhs": e.target.value }))} placeholder="5000" />
+          <p className="text-xs text-gray-400 mt-0.5">Orders (converted from quotes) above this total will require approval before confirmation.</p>
         </div>
       </div>
 

@@ -519,6 +519,12 @@ async function main() {
     { key: "order.prefix", value: "ORD" },
     { key: "currency.markupRatio", value: "0.35" },
     { key: "exchange.autoFetch", value: "false" },
+    { key: "approval.expenseThresholdGhs", value: "500" },
+    { key: "approval.quoteDiscountThresholdPct", value: "10" },
+    { key: "approval.orderTotalThresholdGhs", value: "5000" },
+    { key: "production.labourRateGhs", value: "15" },
+    { key: "production.overheadRateGhs", value: "10" },
+    { key: "tax.vatRate", value: "0" },
   ];
 
   for (const s of settings) {

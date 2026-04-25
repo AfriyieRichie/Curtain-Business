@@ -396,6 +396,15 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
     onError: () => toast.error("Failed to update status"),
   });
 
+  const submitApprovalMutation = useMutation({
+    mutationFn: () => purchasingApi.submitPOForApproval(po.id),
+    onSuccess: () => { toast.success("Approval request submitted"); invalidate(); },
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed to submit";
+      toast.error(msg);
+    },
+  });
+
   const cancelMutation = useMutation({
     mutationFn: () => purchasingApi.updatePO(po.id, { status: "CANCELLED" }),
     onSuccess: () => { toast.success("Purchase order cancelled"); invalidate(); setView("detail"); },
@@ -467,6 +476,16 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
         <div className="space-y-1 text-sm text-gray-600">
           <div className="flex items-center gap-2 flex-wrap">
             <StatusBadge status={po.status} type="po" />
+            {po.approvalStatus === "PENDING" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Awaiting Approval
+              </span>
+            )}
+            {po.approvalStatus === "APPROVED" && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                <CheckCircle2 size={10} /> Approved
+              </span>
+            )}
             {overdue && (
               <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                 <AlertTriangle size={10} /> OVERDUE
@@ -498,30 +517,49 @@ function PODetailModal({ po: listPO, onClose, onRefresh }: { po: PurchaseOrder; 
 
           {po.status === "DRAFT" && (
             <>
-              <button onClick={() => setView("edit")} className="btn-secondary text-sm flex items-center gap-1.5">
-                <Pencil size={14} /> Edit
-              </button>
-              {hasSupplierEmail ? (
+              {!po.approvalStatus && (
+                <button onClick={() => setView("edit")} className="btn-secondary text-sm flex items-center gap-1.5">
+                  <Pencil size={14} /> Edit
+                </button>
+              )}
+              {/* Approval gate */}
+              {!po.approvalStatus && (
                 <button
-                  onClick={() => sendMutation.mutate()}
-                  disabled={sendMutation.isPending}
+                  onClick={() => submitApprovalMutation.mutate()}
+                  disabled={submitApprovalMutation.isPending}
                   className="btn-primary text-sm flex items-center gap-1.5"
                 >
-                  {sendMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Send to Supplier
+                  {submitApprovalMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Submit for Approval
                 </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                    No supplier email — download PDF and send manually
-                  </span>
+              )}
+              {po.approvalStatus === "PENDING" && (
+                <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-1.5">
+                  Pending approval — cannot send until approved
+                </span>
+              )}
+              {po.approvalStatus === "APPROVED" && (
+                hasSupplierEmail ? (
                   <button
-                    onClick={() => markSentMutation.mutate()}
-                    disabled={markSentMutation.isPending}
-                    className="btn-secondary text-sm flex items-center gap-1.5"
+                    onClick={() => sendMutation.mutate()}
+                    disabled={sendMutation.isPending}
+                    className="btn-primary text-sm flex items-center gap-1.5"
                   >
-                    {markSentMutation.isPending ? <Spinner size="sm" /> : null} Mark as Sent
+                    {sendMutation.isPending ? <Spinner size="sm" /> : <Send size={14} />} Send to Supplier
                   </button>
-                </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      No supplier email — download PDF and send manually
+                    </span>
+                    <button
+                      onClick={() => markSentMutation.mutate()}
+                      disabled={markSentMutation.isPending}
+                      className="btn-secondary text-sm flex items-center gap-1.5"
+                    >
+                      {markSentMutation.isPending ? <Spinner size="sm" /> : null} Mark as Sent
+                    </button>
+                  </div>
+                )
               )}
             </>
           )}
@@ -1135,8 +1173,13 @@ export default function PurchasingPage() {
                       </td>
                       <td className="table-td font-medium">{po.supplier?.name ?? "—"}</td>
                       <td className="table-td">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <StatusBadge status={po.status} type="po" />
+                          {po.approvalStatus === "PENDING" && (
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700">
+                              Awaiting Approval
+                            </span>
+                          )}
                           {isOverdue(po) && (
                             <span className="inline-flex items-center gap-0.5 rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-medium text-red-700">
                               <AlertTriangle size={9} /> Overdue

@@ -6,6 +6,7 @@ import { AppError } from "../middleware/errorHandler";
 import { getCurrentRate } from "../services/exchange-rate.service";
 import { nextDocNumber } from "../services/doc-number.service";
 import { calculateBOM, serializeBOMSnapshot, evaluateFormula } from "../services/bom-engine";
+import { createApprovalRequest } from "../services/approval.service";
 
 // ── List / Get ────────────────────────────────────────────────────────────────
 
@@ -186,6 +187,12 @@ export async function createQuote(req: Request, res: Response) {
     const discountAmountGhs = subtotalGhs.mul(discountRate).div(100).toDecimalPlaces(2);
     const finalTotalGhs = subtotalGhs.minus(discountAmountGhs);
 
+    const discountThresholdSetting = await tx.businessSetting.findUnique({
+      where: { key: "approval.quoteDiscountThresholdPct" },
+    });
+    const discountThreshold = Number(discountThresholdSetting?.value ?? "10");
+    const needsDiscountApproval = discountRate > discountThreshold;
+
     return tx.quote.create({
       data: {
         quoteNumber,
@@ -193,7 +200,9 @@ export async function createQuote(req: Request, res: Response) {
         exchangeRateSnapshot: rate,
         subtotalGhs,
         discountAmountGhs,
+        discountRate: discountRate > 0 ? new Decimal(discountRate) : null,
         totalGhs: finalTotalGhs,
+        approvalStatus: needsDiscountApproval ? "PENDING" : null,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         notes: body.notes,
         createdById: req.auth!.userId,
@@ -206,7 +215,17 @@ export async function createQuote(req: Request, res: Response) {
     });
   });
 
-  sendSuccess(res, quote, "Quote created.", 201);
+  const appliedDiscountRate = body.discountRate ?? 0;
+  const quoteRecord = quote as typeof quote & { approvalStatus: string | null };
+  if (quoteRecord.approvalStatus === "PENDING") {
+    await createApprovalRequest("QUOTE_DISCOUNT", quote.id, req.auth!.userId, {
+      quoteNumber: quote.quoteNumber,
+      discountRate: appliedDiscountRate,
+      discountAmountGhs: quote.discountAmountGhs.toString(),
+    });
+  }
+
+  sendSuccess(res, quote, quoteRecord.approvalStatus === "PENDING" ? "Quote created — discount pending approval." : "Quote created.", 201);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -246,6 +265,17 @@ export async function convertToOrder(req: Request, res: Response) {
     throw new AppError(400, `Quote ${quote.quoteNumber} cannot be converted (status: ${quote.status}).`);
   }
 
+  const quoteWithApproval = quote as typeof quote & { approvalStatus: string | null };
+  if (quoteWithApproval.approvalStatus === "PENDING") {
+    throw new AppError(403, "This quote has a discount pending approval. It cannot be converted until approved.");
+  }
+
+  const orderTotalThresholdSetting = await prisma.businessSetting.findUnique({
+    where: { key: "approval.orderTotalThresholdGhs" },
+  });
+  const orderThreshold = new Decimal(orderTotalThresholdSetting?.value ?? "5000");
+  const needsOrderApproval = new Decimal(quote.totalGhs.toString()).gt(orderThreshold);
+
   const orderNumber = await nextDocNumber("ORD");
   const rate = new Decimal(quote.exchangeRateSnapshot.toString());
   const deposit = depositAmount ? new Decimal(depositAmount) : new Decimal(0);
@@ -264,6 +294,8 @@ export async function convertToOrder(req: Request, res: Response) {
         depositAmountGhs: deposit,
         balanceDueGhs: balance.gt(0) ? balance : new Decimal(0),
         notes: quote.notes,
+        status: needsOrderApproval ? "PENDING" : "CONFIRMED",
+        approvalStatus: needsOrderApproval ? "PENDING" : null,
         createdById: req.auth!.userId,
         items: {
           create: quote.items.map((qi) => ({
@@ -293,5 +325,13 @@ export async function convertToOrder(req: Request, res: Response) {
     return newOrder;
   });
 
-  sendSuccess(res, order, "Quote converted to order.", 201);
+  if (needsOrderApproval) {
+    await createApprovalRequest("ORDER_CONVERSION", order.id, req.auth!.userId, {
+      orderNumber: order.orderNumber,
+      totalGhs: quote.totalGhs.toString(),
+      thresholdGhs: orderThreshold.toString(),
+    });
+  }
+
+  sendSuccess(res, order, needsOrderApproval ? "Order created — pending approval due to high value." : "Quote converted to order.", 201);
 }

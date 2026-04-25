@@ -3,6 +3,14 @@
 
 export type Currency = "USD" | "GHS";
 export type ExpenseType = "ADMIN" | "FACTORY" | "SHARED";
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ApprovalEntityType =
+  | "PURCHASE_ORDER"
+  | "EXPENSE"
+  | "QUOTE_DISCOUNT"
+  | "INVOICE_CANCELLATION"
+  | "STOCK_ADJUSTMENT"
+  | "ORDER_CONVERSION";
 export type UserRole = "ADMIN" | "ACCOUNTS" | "SALES" | "WORKSHOP";
 export type UnitOfMeasure = "METER" | "PIECE" | "ROLL" | "PACK" | "SET";
 export type MovementType = "PURCHASE" | "PRODUCTION_ISSUE" | "MANUAL_ADJUSTMENT" | "DAMAGE" | "RETURN";
@@ -87,8 +95,22 @@ export interface StockMovement {
   referenceId?: string;
   referenceType?: string;
   notes?: string;
+  approvalStatus?: ApprovalStatus | null;
   createdBy: Pick<User, "id" | "name">;
   createdAt: string;
+}
+
+export interface ApprovalRequest {
+  id: string;
+  entityType: ApprovalEntityType;
+  entityId: string;
+  status: ApprovalStatus;
+  requestedBy: Pick<User, "id" | "name">;
+  requestedAt: string;
+  reviewedBy?: Pick<User, "id" | "name"> | null;
+  reviewedAt?: string | null;
+  note?: string | null;
+  context?: Record<string, unknown> | null;
 }
 
 export interface Customer {
@@ -167,6 +189,7 @@ export interface Quote {
   customerId: string;
   customer?: Pick<Customer, "id" | "name" | "phone" | "email">;
   status: QuoteStatus;
+  approvalStatus?: ApprovalStatus | null;
   validUntil?: string;
   notes?: string;
   exchangeRateSnapshot: string;
@@ -214,6 +237,7 @@ export interface Order {
   customerId: string;
   customer?: Pick<Customer, "id" | "name" | "phone">;
   status: OrderStatus;
+  approvalStatus?: ApprovalStatus | null;
   exchangeRateSnapshot: string;
   materialCostUsd: string;
   materialCostGhs: string;
@@ -259,6 +283,7 @@ export interface Invoice {
   customerId: string;
   customer?: Pick<Customer, "id" | "name" | "phone" | "email" | "address">;
   status: InvoiceStatus;
+  approvalStatus?: ApprovalStatus | null;
   issueDate: string;
   dueDate: string;
   exchangeRateSnapshot: string;
@@ -318,6 +343,7 @@ export interface Expense {
   amountGhs: string;
   type: ExpenseType;
   categoryId: string | null;
+  approvalStatus?: ApprovalStatus | null;
   category?: Pick<ExpenseCategory, "id" | "name" | "type"> | null;
   notes: string | null;
   createdById: string;

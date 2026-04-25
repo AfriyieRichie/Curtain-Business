@@ -3,6 +3,7 @@ import Decimal from "decimal.js";
 import { prisma } from "../utils/prisma";
 import { sendSuccess } from "../utils/response";
 import { AppError } from "../middleware/errorHandler";
+import { createApprovalRequest } from "../services/approval.service";
 
 const FACTORY_SHARE = new Decimal("0.65");
 const ADMIN_SHARE = new Decimal("0.35");
@@ -76,14 +77,22 @@ export async function createExpense(req: Request, res: Response) {
   const { date, description, amountGhs, type, categoryId, notes } = req.body;
   const userId = req.auth!.userId;
 
+  const thresholdSetting = await prisma.businessSetting.findUnique({
+    where: { key: "approval.expenseThresholdGhs" },
+  });
+  const threshold = new Decimal(thresholdSetting?.value ?? "500");
+  const amount = new Decimal(amountGhs);
+  const needsApproval = amount.gt(threshold);
+
   const expense = await prisma.expense.create({
     data: {
       date: new Date(date),
       description,
-      amountGhs: new Decimal(amountGhs),
+      amountGhs: amount,
       type,
       categoryId: categoryId || null,
       notes: notes || null,
+      approvalStatus: needsApproval ? "PENDING" : null,
       createdById: userId,
     },
     include: {
@@ -92,7 +101,15 @@ export async function createExpense(req: Request, res: Response) {
     },
   });
 
-  sendSuccess(res, expense, undefined, 201);
+  if (needsApproval) {
+    await createApprovalRequest("EXPENSE", expense.id, userId, {
+      description,
+      amountGhs: amountGhs.toString(),
+      thresholdGhs: threshold.toString(),
+    });
+  }
+
+  sendSuccess(res, expense, needsApproval ? "Expense created — pending approval." : undefined, 201);
 }
 
 export async function updateExpense(req: Request, res: Response) {

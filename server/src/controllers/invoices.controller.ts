@@ -6,6 +6,7 @@ import { AppError } from "../middleware/errorHandler";
 import { nextDocNumber } from "../services/doc-number.service";
 import { generateInvoicePDF } from "../services/pdf.service";
 import { sendInvoiceEmail, sendPaymentReceiptEmail } from "../services/email.service";
+import { createApprovalRequest } from "../services/approval.service";
 
 // ── Invoices ──────────────────────────────────────────────────────────────────
 
@@ -135,6 +136,23 @@ export async function updateInvoice(req: Request, res: Response) {
   const { dueDate, notes, status } = req.body as {
     dueDate?: string; notes?: string; status?: string;
   };
+
+  if (status === "CANCELLED") {
+    const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: req.params.id } });
+    const requiresApproval = ["SENT", "PAID", "PARTIAL"].includes(invoice.status);
+    const invoiceWithApproval = invoice as typeof invoice & { approvalStatus: string | null };
+    if (requiresApproval && invoiceWithApproval.approvalStatus !== "APPROVED") {
+      await prisma.invoice.update({ where: { id: invoice.id }, data: { approvalStatus: "PENDING" } as never });
+      await createApprovalRequest("INVOICE_CANCELLATION", invoice.id, req.auth!.userId, {
+        invoiceNumber: invoice.invoiceNumber,
+        totalGhs: invoice.totalGhs.toString(),
+        currentStatus: invoice.status,
+      });
+      sendSuccess(res, null, "Cancellation request submitted for approval.");
+      return;
+    }
+  }
+
   const invoice = await prisma.invoice.update({
     where: { id: req.params.id },
     data: {

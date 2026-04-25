@@ -105,6 +105,13 @@ router.get("/purchase-orders/:id/pdf",
   ctrl.downloadPOPDF
 );
 
+router.post("/purchase-orders/:id/submit-approval",
+  authGuard, rbacGuard("ACCOUNTS"),
+  param("id").isUUID(),
+  validate,
+  ctrl.submitPOForApproval
+);
+
 router.post("/purchase-orders/:id/email",
   authGuard, rbacGuard("ACCOUNTS"),
   param("id").isUUID(),

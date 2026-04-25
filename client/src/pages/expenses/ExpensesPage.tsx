@@ -260,6 +260,7 @@ function ExpenseLogTab({ categories }: { categories: ExpenseCategory[] }) {
                 <th className="table-th">Category</th>
                 <th className="table-th">Type</th>
                 <th className="table-th text-right">Amount (GHS)</th>
+                <th className="table-th text-center">Approval</th>
                 <th className="table-th" />
               </tr>
             </thead>
@@ -278,6 +279,17 @@ function ExpenseLogTab({ categories }: { categories: ExpenseCategory[] }) {
                     </span>
                   </td>
                   <td className="table-td text-right font-mono font-semibold">{fmt(e.amountGhs)}</td>
+                  <td className="table-td text-center">
+                    {e.approvalStatus === "PENDING" && (
+                      <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">Pending</span>
+                    )}
+                    {e.approvalStatus === "APPROVED" && (
+                      <span className="inline-block rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Approved</span>
+                    )}
+                    {e.approvalStatus === "REJECTED" && (
+                      <span className="inline-block rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">Rejected</span>
+                    )}
+                  </td>
                   <td className="table-td">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => setEditItem(e)} className="rounded p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100">

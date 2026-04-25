@@ -19,6 +19,7 @@ import PurchasingPage from "@/pages/purchasing/PurchasingPage";
 import ReportsPage from "@/pages/reports/ReportsPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
 import ExpensesPage from "@/pages/expenses/ExpensesPage";
+import ApprovalsPage from "@/pages/approvals/ApprovalsPage";
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuthStore();
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="reports/*" element={<ReportsPage />} />
           <Route path="expenses/*" element={<ExpensesPage />} />
           <Route path="settings/*" element={<SettingsPage />} />
+          <Route path="approvals/*" element={<ApprovalsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

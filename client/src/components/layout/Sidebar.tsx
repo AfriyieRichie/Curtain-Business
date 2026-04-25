@@ -2,10 +2,11 @@ import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, Package, FileText, Users, ShoppingCart,
   ClipboardList, Wrench, Receipt, Truck, BarChart3, Settings,
-  Pencil, Wallet,
+  Pencil, Wallet, ClipboardCheck,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { exchangeRateApi } from "@/api/exchange-rates";
+import { approvalsApi } from "@/api/approvals";
 import { formatDate } from "@/lib/formatters";
 import { useRateStore } from "@/store/rate";
 import { useAuthStore, type UserRole } from "@/store/auth";
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { to: "/purchasing",  icon: Truck,           label: "Purchasing",    roles: ADMIN_ACCOUNTS },
   { to: "/reports",     icon: BarChart3,       label: "Reports",       roles: ADMIN_ACCOUNTS },
   { to: "/expenses",    icon: Wallet,          label: "Expenses",      roles: ADMIN_ACCOUNTS },
+  { to: "/approvals",   icon: ClipboardCheck,  label: "Approvals",     roles: ADMIN_ACCOUNTS },
   { to: "/settings",    icon: Settings,        label: "Settings",      roles: ["ADMIN"] },
 ];
 
@@ -41,6 +43,14 @@ export default function Sidebar() {
     queryFn: () => exchangeRateApi.getCurrent(),
     refetchInterval: 1000 * 60 * 10, // re-check every 10 min
   });
+
+  const { data: pendingData } = useQuery({
+    queryKey: ["approval-pending-count"],
+    queryFn: () => approvalsApi.getPendingCount(),
+    refetchInterval: 1000 * 60 * 2,
+    enabled: role === "ADMIN" || role === "ACCOUNTS",
+  });
+  const pendingCount = pendingData?.data?.count ?? 0;
 
   useEffect(() => {
     if (data?.data) {
@@ -74,7 +84,12 @@ export default function Sidebar() {
             }
           >
             <Icon size={18} />
-            {label}
+            <span className="flex-1">{label}</span>
+            {to === "/approvals" && pendingCount > 0 && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-600 px-1.5 text-xs font-semibold text-white">
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
           </NavLink>
         ))}
       </nav>

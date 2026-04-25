@@ -8,6 +8,7 @@ export interface PurchaseOrder {
   supplierId: string;
   supplier?: Pick<Supplier, "id" | "name" | "email" | "contactPerson">;
   status: string;
+  approvalStatus?: string | null;
   subtotal: string;
   total: string;
   orderDate: string;
@@ -119,6 +120,9 @@ export const purchasingApi = {
 
   downloadPOPDF: (id: string, poNumber: string) =>
     downloadPDF(`/purchasing/purchase-orders/${id}/pdf`, `${poNumber}.pdf`),
+
+  submitPOForApproval: (id: string) =>
+    apiClient.post<ApiResponse<PurchaseOrder>>(`/purchasing/purchase-orders/${id}/submit-approval`).then((r) => r.data),
 
   emailPO: (id: string) =>
     apiClient.post<ApiResponse<null>>(`/purchasing/purchase-orders/${id}/email`).then((r) => r.data),

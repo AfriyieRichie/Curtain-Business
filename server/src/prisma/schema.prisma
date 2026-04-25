@@ -122,6 +122,21 @@ enum PaymentMethod {
   OTHER
 }
 
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalEntityType {
+  PURCHASE_ORDER
+  EXPENSE
+  QUOTE_DISCOUNT
+  INVOICE_CANCELLATION
+  STOCK_ADJUSTMENT
+  ORDER_CONVERSION
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MODELS
 // ─────────────────────────────────────────────────────────────────────────────
@@ -148,6 +163,8 @@ model User {
   stockMovements   StockMovement[]
   payments         Payment[]
   expenses         Expense[]
+  approvalRequests ApprovalRequest[] @relation("ApprovalRequester")
+  approvalReviews  ApprovalRequest[] @relation("ApprovalReviewer")
 
   @@map("users")
 }
@@ -245,6 +262,7 @@ model StockMovement {
   referenceId            String?      @map("reference_id")
   referenceType          String?      @map("reference_type")
   notes                  String?
+  approvalStatus         ApprovalStatus? @map("approval_status")
   createdById            String       @map("created_by")
   createdAt              DateTime     @default(now()) @map("created_at")
 
@@ -271,6 +289,7 @@ model PurchaseOrder {
   freightCostUsd   Decimal  @default(0) @map("freight_cost_usd")  @db.Decimal(18, 4)
   clearingCostGhs  Decimal  @default(0) @map("clearing_cost_ghs") @db.Decimal(18, 4)
   otherLandedGhs   Decimal  @default(0) @map("other_landed_ghs")  @db.Decimal(18, 4)
+  approvalStatus   ApprovalStatus? @map("approval_status")
   createdById      String   @map("created_by")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -469,9 +488,11 @@ model Quote {
   materialCostGhs      Decimal     @default(0) @map("material_cost_ghs") @db.Decimal(18, 4)
   subtotalGhs          Decimal     @default(0) @map("subtotal_ghs") @db.Decimal(18, 4)
   discountAmountGhs    Decimal     @default(0) @map("discount_amount_ghs") @db.Decimal(18, 4)
+  discountRate         Decimal?    @map("discount_rate") @db.Decimal(6, 4)
   taxRate              Decimal     @default(0) @map("tax_rate") @db.Decimal(6, 4)
   taxAmountGhs         Decimal     @default(0) @map("tax_amount_ghs") @db.Decimal(18, 4)
   totalGhs             Decimal     @default(0) @map("total_ghs") @db.Decimal(18, 4)
+  approvalStatus       ApprovalStatus? @map("approval_status")
   createdById          String      @map("created_by")
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
@@ -534,6 +555,7 @@ model Order {
   balanceDueGhs        Decimal     @default(0) @map("balance_due_ghs") @db.Decimal(18, 4)
   deliveryDate         DateTime?   @map("delivery_date")
   notes                String?
+  approvalStatus       ApprovalStatus? @map("approval_status")
   createdById          String      @map("created_by")
   createdAt            DateTime    @default(now()) @map("created_at")
   updatedAt            DateTime    @updatedAt @map("updated_at")
@@ -640,6 +662,7 @@ model Invoice {
   amountPaidGhs        Decimal       @default(0) @map("amount_paid_ghs") @db.Decimal(18, 4)
   balanceGhs           Decimal       @default(0) @map("balance_ghs") @db.Decimal(18, 4)
   notes                String?
+  approvalStatus       ApprovalStatus? @map("approval_status")
   createdAt            DateTime      @default(now()) @map("created_at")
 
   order    Order         @relation(fields: [orderId], references: [id])
@@ -718,11 +741,12 @@ model Expense {
   description String
   amountGhs   Decimal          @map("amount_ghs") @db.Decimal(18, 4)
   type        ExpenseType
-  categoryId  String?          @map("category_id")
-  notes       String?
-  createdById String           @map("created_by")
-  createdAt   DateTime         @default(now()) @map("created_at")
-  updatedAt   DateTime         @updatedAt @map("updated_at")
+  categoryId     String?           @map("category_id")
+  notes          String?
+  approvalStatus ApprovalStatus?   @map("approval_status")
+  createdById    String            @map("created_by")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
 
   category  ExpenseCategory? @relation(fields: [categoryId], references: [id])
   createdBy User             @relation(fields: [createdById], references: [id])
@@ -730,4 +754,24 @@ model Expense {
   @@index([date(sort: Desc)])
   @@index([type])
   @@map("expenses")
+}
+
+model ApprovalRequest {
+  id            String             @id @default(uuid())
+  entityType    ApprovalEntityType @map("entity_type")
+  entityId      String             @map("entity_id")
+  status        ApprovalStatus     @default(PENDING)
+  requestedById String             @map("requested_by")
+  reviewedById  String?            @map("reviewed_by")
+  reviewedAt    DateTime?          @map("reviewed_at")
+  note          String?
+  context       Json?
+  requestedAt   DateTime           @default(now()) @map("requested_at")
+
+  requestedBy User  @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  reviewedBy  User? @relation("ApprovalReviewer",  fields: [reviewedById],  references: [id])
+
+  @@index([status])
+  @@index([entityType, entityId])
+  @@map("approval_requests")
 }

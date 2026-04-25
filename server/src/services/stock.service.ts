@@ -7,6 +7,7 @@ import Decimal from "decimal.js";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../middleware/errorHandler";
 import { recalcGHSCost, applyMarkup } from "../utils/currency";
+import { createApprovalRequest } from "./approval.service";
 
 /**
  * Issues a single JobCardMaterial line.
@@ -69,29 +70,46 @@ export async function adjustStock(
   userId: string,
   notes?: string
 ) {
-  return prisma.$transaction(async (tx) => {
-    const material = await tx.material.findUniqueOrThrow({ where: { id: materialId } });
-    const newStock = new Decimal(material.currentStock.toString()).plus(quantity);
+  const needsApproval = movementType === "MANUAL_ADJUSTMENT" || movementType === "DAMAGE";
 
+  const material = await prisma.material.findUniqueOrThrow({ where: { id: materialId } });
+
+  if (!needsApproval) {
+    // RETURN: apply immediately as before
+    const newStock = new Decimal(material.currentStock.toString()).plus(quantity);
     if (newStock.lt(0)) {
       throw new AppError(422, `Adjustment would result in negative stock (${newStock}).`);
     }
-
-    await tx.material.update({ where: { id: materialId }, data: { currentStock: newStock } });
-
-    return tx.stockMovement.create({
-      data: {
-        materialId,
-        movementType,
-        quantity: new Decimal(quantity),
-        unitCostUsd: material.unitCostUsd,
-        unitCostGhs: material.unitCostGhs,
-        exchangeRateAtMovement: material.exchangeRateUsed,
-        notes,
-        createdById: userId,
-      },
+    return prisma.$transaction(async (tx) => {
+      await tx.material.update({ where: { id: materialId }, data: { currentStock: newStock } });
+      return tx.stockMovement.create({
+        data: {
+          materialId, movementType, quantity: new Decimal(quantity),
+          unitCostUsd: material.unitCostUsd, unitCostGhs: material.unitCostGhs,
+          exchangeRateAtMovement: material.exchangeRateUsed, notes, createdById: userId,
+        },
+      });
     });
+  }
+
+  // MANUAL_ADJUSTMENT / DAMAGE: create movement as PENDING, do NOT touch currentStock yet
+  const movement = await prisma.stockMovement.create({
+    data: {
+      materialId, movementType, quantity: new Decimal(quantity),
+      unitCostUsd: material.unitCostUsd, unitCostGhs: material.unitCostGhs,
+      exchangeRateAtMovement: material.exchangeRateUsed,
+      notes, approvalStatus: "PENDING", createdById: userId,
+    },
   });
+
+  await createApprovalRequest(
+    "STOCK_ADJUSTMENT",
+    movement.id,
+    userId,
+    { materialId, quantity, movementType }
+  );
+
+  return movement;
 }
 
 /**

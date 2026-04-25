@@ -8,6 +8,7 @@ import { receiveGRN } from "../services/stock.service";
 import { getCurrentRate } from "../services/exchange-rate.service";
 import { generatePurchaseOrderPDF, generateGRNPDF } from "../services/pdf.service";
 import { sendPurchaseOrderEmail } from "../services/email.service";
+import { createApprovalRequest } from "../services/approval.service";
 
 // ── Suppliers ─────────────────────────────────────────────────────────────────
 
@@ -196,11 +197,28 @@ export async function downloadPOPDF(req: Request, res: Response) {
   res.end(buf);
 }
 
+export async function submitPOForApproval(req: Request, res: Response) {
+  const po = await prisma.purchaseOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+  if (po.status !== "DRAFT") throw new AppError(400, "Only DRAFT purchase orders can be submitted for approval.");
+  if (po.approvalStatus === "APPROVED") throw new AppError(400, "This PO is already approved.");
+
+  await prisma.purchaseOrder.update({ where: { id: po.id }, data: { approvalStatus: "PENDING" } });
+  await createApprovalRequest("PURCHASE_ORDER", po.id, req.auth!.userId, {
+    poNumber: po.poNumber,
+    total: po.total.toString(),
+  });
+
+  sendSuccess(res, null, "Purchase order submitted for approval.");
+}
+
 export async function emailPO(req: Request, res: Response) {
   const po = await prisma.purchaseOrder.findUniqueOrThrow({
     where: { id: req.params.id },
     include: { supplier: { select: { email: true, name: true } } },
   });
+  if (po.approvalStatus !== "APPROVED") {
+    throw new AppError(403, "Purchase order must be approved before sending to supplier.");
+  }
   if (!po.supplier.email) throw new AppError(400, "Supplier has no email address on file.");
 
   const pdf = await generatePurchaseOrderPDF(req.params.id);
