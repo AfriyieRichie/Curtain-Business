@@ -154,7 +154,11 @@ export async function getInventoryReport(_req: Request, res: Response) {
   const items = materials.map((m) => {
     const stock = new Decimal(m.currentStock.toString());
     const lineGhs = stock.mul(new Decimal(m.unitCostGhs.toString())).toDecimalPlaces(4);
-    const lineUsd = stock.mul(new Decimal(m.unitCostUsd.toString())).toDecimalPlaces(4);
+    // Derive USD from GHS ÷ exchange rate so landed costs (GHS-only) are included
+    const rate = new Decimal(m.exchangeRateUsed.toString());
+    const lineUsd = rate.gt(0)
+      ? lineGhs.div(rate).toDecimalPlaces(4)
+      : stock.mul(new Decimal(m.unitCostUsd.toString())).toDecimalPlaces(4);
     totalGhs = totalGhs.plus(lineGhs);
     totalUsd = totalUsd.plus(lineUsd);
     return { ...m, lineValueGhs: lineGhs.toString(), lineValueUsd: lineUsd.toString() };

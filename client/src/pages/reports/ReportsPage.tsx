@@ -117,18 +117,20 @@ function ProfitabilityReport() {
 
 function InventoryReport() {
   const { data, isLoading } = useQuery({ queryKey: ["report-inventory"], queryFn: reportsApi.getInventory });
-  const report = data?.data as { totalGhs: string; totalUsd: string; items: Array<{ id: string; code: string; name: string; currentStock: string; unit: string; unitCostGhs: string; lineValueGhs: string; category?: { name: string } }> } | undefined;
+  const report = data?.data as { totalGhs: string; totalUsd: string; items: Array<{ id: string; code: string; name: string; currentStock: string; unit: string; unitCostGhs: string; unitCostUsd: string; exchangeRateUsed: string; lineValueGhs: string; category?: { name: string } }> } | undefined;
 
   return isLoading ? <FullPageSpinner /> : report ? (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div className="card text-center">
-          <p className="text-sm text-gray-500">Total Value (GHS)</p>
+          <p className="text-sm text-gray-500">Total Inventory Value (GHS)</p>
           <p className="text-2xl font-bold mt-1">{fmtGhs(report.totalGhs)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Includes landed costs</p>
         </div>
         <div className="card text-center">
-          <p className="text-sm text-gray-500">Total Value (USD)</p>
+          <p className="text-sm text-gray-500">Total Inventory Value (USD equiv.)</p>
           <p className="text-2xl font-bold mt-1">$ {Number(report.totalUsd).toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+          <p className="text-xs text-gray-400 mt-0.5">GHS value ÷ exchange rate used</p>
         </div>
       </div>
       <div className="card p-0 overflow-hidden">
@@ -139,21 +141,28 @@ function InventoryReport() {
               <th className="table-th">Name</th>
               <th className="table-th">Category</th>
               <th className="table-th text-right">Stock</th>
-              <th className="table-th text-right">Unit Cost</th>
+              <th className="table-th text-right">Unit Cost (GHS)</th>
+              <th className="table-th text-right">Unit Cost (USD)</th>
               <th className="table-th text-right">Line Value (GHS)</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {report.items.map((m) => (
-              <tr key={m.id}>
-                <td className="table-td font-mono text-xs font-semibold text-violet-700">{m.code}</td>
-                <td className="table-td">{m.name}</td>
-                <td className="table-td text-gray-500">{m.category?.name ?? "—"}</td>
-                <td className="table-td text-right font-mono">{Number(m.currentStock).toFixed(2)} {m.unit}</td>
-                <td className="table-td text-right font-mono">{fmtGhs(m.unitCostGhs)}</td>
-                <td className="table-td text-right font-mono font-medium">{fmtGhs(m.lineValueGhs)}</td>
-              </tr>
-            ))}
+            {report.items.map((m) => {
+              const rate = Number(m.exchangeRateUsed);
+              const costGhs = Number(m.unitCostGhs);
+              const effectiveUsd = rate > 0 ? costGhs / rate : Number(m.unitCostUsd);
+              return (
+                <tr key={m.id}>
+                  <td className="table-td font-mono text-xs font-semibold text-violet-700">{m.code}</td>
+                  <td className="table-td">{m.name}</td>
+                  <td className="table-td text-gray-500">{m.category?.name ?? "—"}</td>
+                  <td className="table-td text-right font-mono">{Number(m.currentStock).toFixed(2)} {m.unit}</td>
+                  <td className="table-td text-right font-mono">{fmtGhs(m.unitCostGhs)}</td>
+                  <td className="table-td text-right font-mono text-gray-500 text-xs">${effectiveUsd.toFixed(4)}</td>
+                  <td className="table-td text-right font-mono font-medium">{fmtGhs(m.lineValueGhs)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

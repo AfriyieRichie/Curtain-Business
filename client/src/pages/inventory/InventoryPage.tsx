@@ -124,8 +124,9 @@ export default function InventoryPage() {
                   <th className="table-th">Name</th>
                   <th className="table-th">Category</th>
                   <th className="table-th text-right">Stock</th>
+                  <th className="table-th text-right">Cost (GHS)</th>
                   <th className="table-th text-right">Cost (USD)</th>
-                  <th className="table-th text-right">Price (GHS)</th>
+                  <th className="table-th text-right">Sell Price (GHS)</th>
                   <th className="table-th">Supplier</th>
                   <th className="table-th" />
                 </tr>
@@ -133,6 +134,9 @@ export default function InventoryPage() {
               <tbody className="divide-y divide-gray-100">
                 {materials.map((m) => {
                   const isLow = Number(m.currentStock) <= Number(m.minimumStock);
+                  const rate = Number(m.exchangeRateUsed);
+                  const costGhs = Number(m.unitCostGhs);
+                  const effectiveUsd = rate > 0 ? costGhs / rate : Number(m.unitCostUsd);
                   return (
                     <tr key={m.id} className="hover:bg-gray-50">
                       <td className="table-td font-mono text-xs font-semibold text-violet-700">{m.code}</td>
@@ -151,7 +155,8 @@ export default function InventoryPage() {
                         </span>
                         {isLow && <span className="ml-1 text-xs text-amber-500">⚠</span>}
                       </td>
-                      <td className="table-td text-right font-mono">${Number(m.unitCostUsd).toFixed(4)}</td>
+                      <td className="table-td text-right font-mono text-gray-900">GHS {costGhs.toFixed(4)}</td>
+                      <td className="table-td text-right font-mono text-gray-500 text-xs">${effectiveUsd.toFixed(4)}</td>
                       <td className="table-td text-right font-mono">GHS {Number(m.sellingPriceGhs).toFixed(2)}</td>
                       <td className="table-td text-gray-500 text-xs">{m.supplier?.name ?? "—"}</td>
                       <td className="table-td">
