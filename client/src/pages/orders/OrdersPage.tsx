@@ -142,7 +142,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
       {full.approvalStatus !== "PENDING" && full.approvalStatus !== "REJECTED" && (
         <div className="flex gap-2 flex-wrap">
           {full.status === "PENDING" && <button className="btn-secondary" onClick={() => updateStatus("CONFIRMED")}>Confirm Order</button>}
-          {full.status === "CONFIRMED" && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
+          {full.status === "CONFIRMED" && jobCards.length === 0 && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
           {full.status === "IN_PRODUCTION" && <button className="btn-secondary" onClick={() => updateStatus("COMPLETED")}>Mark Completed</button>}
           {full.status === "COMPLETED" && <button className="btn-secondary" onClick={() => updateStatus("DELIVERED")}>Mark Delivered</button>}
         </div>

@@ -187,11 +187,15 @@ export async function createQuote(req: Request, res: Response) {
     const discountAmountGhs = subtotalGhs.mul(discountRate).div(100).toDecimalPlaces(2);
     const finalTotalGhs = subtotalGhs.minus(discountAmountGhs);
 
-    const discountThresholdSetting = await tx.businessSetting.findUnique({
-      where: { key: "approval.quoteDiscountThresholdPct" },
-    });
+    const [discountThresholdSetting, highValueThresholdSetting] = await Promise.all([
+      tx.businessSetting.findUnique({ where: { key: "approval.quoteDiscountThresholdPct" } }),
+      tx.businessSetting.findUnique({ where: { key: "approval.orderTotalThresholdGhs" } }),
+    ]);
     const discountThreshold = Number(discountThresholdSetting?.value ?? "10");
+    const highValueThreshold = new Decimal(highValueThresholdSetting?.value ?? "5000");
     const needsDiscountApproval = discountRate > discountThreshold;
+    const needsHighValueApproval = finalTotalGhs.gt(highValueThreshold);
+    const needsApproval = needsDiscountApproval || needsHighValueApproval;
 
     return tx.quote.create({
       data: {
@@ -202,7 +206,7 @@ export async function createQuote(req: Request, res: Response) {
         discountAmountGhs,
         discountRate: discountRate > 0 ? new Decimal(discountRate) : null,
         totalGhs: finalTotalGhs,
-        approvalStatus: needsDiscountApproval ? "PENDING" : null,
+        approvalStatus: needsApproval ? "PENDING" : null,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         notes: body.notes,
         createdById: req.auth!.userId,
@@ -218,14 +222,21 @@ export async function createQuote(req: Request, res: Response) {
   const appliedDiscountRate = body.discountRate ?? 0;
   const quoteRecord = quote as typeof quote & { approvalStatus: string | null };
   if (quoteRecord.approvalStatus === "PENDING") {
+    const reasons: string[] = [];
+    const discountThresholdVal = Number((await prisma.businessSetting.findUnique({ where: { key: "approval.quoteDiscountThresholdPct" } }))?.value ?? "10");
+    const highValThreshold = new Decimal((await prisma.businessSetting.findUnique({ where: { key: "approval.orderTotalThresholdGhs" } }))?.value ?? "5000");
+    if (appliedDiscountRate > discountThresholdVal) reasons.push(`Discount ${appliedDiscountRate}% exceeds the ${discountThresholdVal}% threshold`);
+    if (new Decimal(quote.totalGhs.toString()).gt(highValThreshold)) reasons.push(`Quote total GHS ${Number(quote.totalGhs).toFixed(2)} exceeds the high-value threshold of GHS ${highValThreshold.toFixed(2)}`);
     await createApprovalRequest("QUOTE_DISCOUNT", quote.id, req.auth!.userId, {
       quoteNumber: quote.quoteNumber,
       discountRate: appliedDiscountRate,
       discountAmountGhs: quote.discountAmountGhs.toString(),
+      totalGhs: quote.totalGhs.toString(),
+      reasons,
     });
   }
 
-  sendSuccess(res, quote, quoteRecord.approvalStatus === "PENDING" ? "Quote created — discount pending approval." : "Quote created.", 201);
+  sendSuccess(res, quote, quoteRecord.approvalStatus === "PENDING" ? "Quote created — pending management approval." : "Quote created.", 201);
 }
 
 // ── Update ────────────────────────────────────────────────────────────────────
@@ -238,6 +249,13 @@ export async function updateQuote(req: Request, res: Response) {
   const existing = await prisma.quote.findUniqueOrThrow({ where: { id: req.params.id } });
   if (existing.status === "ACCEPTED" || existing.status === "REJECTED") {
     throw new AppError(400, `Cannot modify a quote with status ${existing.status}.`);
+  }
+
+  if (status === "SENT") {
+    const existingWithApproval = existing as typeof existing & { approvalStatus: string | null };
+    if (existingWithApproval.approvalStatus === "PENDING") {
+      throw new AppError(403, "This quote is awaiting management approval and cannot be sent to the customer until it is approved.");
+    }
   }
 
   const quote = await prisma.quote.update({

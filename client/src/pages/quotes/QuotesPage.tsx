@@ -108,8 +108,11 @@ export default function QuotesPage() {
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setViewQuote(q)} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">View</button>
                         <button onClick={() => pdfApi.downloadQuote(q.id).catch(() => toast.error("PDF failed"))} className="rounded px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 flex items-center gap-1"><Download size={12} /> PDF</button>
-                        {(q.status === "DRAFT" || q.status === "SENT") && (
+                        {(q.status === "DRAFT" || q.status === "SENT") && q.approvalStatus !== "PENDING" && (
                           <button onClick={() => setConvertQuote(q)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50">Convert</button>
+                        )}
+                        {q.approvalStatus === "PENDING" && (
+                          <span className="rounded px-2 py-1 text-xs text-amber-600 bg-amber-50">Pending Approval</span>
                         )}
                       </div>
                     </td>
@@ -141,7 +144,16 @@ export default function QuotesPage() {
               <div><span className="text-gray-500">Valid Until:</span> <span>{formatDate(viewQuote.validUntil)}</span></div>
             </div>
             {viewQuote.notes && <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">{viewQuote.notes}</p>}
-            {viewQuote.status === "DRAFT" && (
+            {viewQuote.status === "DRAFT" && viewQuote.approvalStatus === "PENDING" && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+                <span className="mt-0.5 text-base">⏳</span>
+                <div>
+                  <p className="font-semibold">Awaiting Management Approval</p>
+                  <p className="text-xs text-amber-700 mt-0.5">This quote cannot be sent to the customer until an Admin or Accounts manager approves it in the Approvals inbox.</p>
+                </div>
+              </div>
+            )}
+            {viewQuote.status === "DRAFT" && viewQuote.approvalStatus !== "PENDING" && (
               <div className="flex gap-2 pt-2">
                 <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "SENT" })} className="btn-primary">Mark as Sent</button>
                 <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "REJECTED" })} className="btn-danger">Reject</button>
