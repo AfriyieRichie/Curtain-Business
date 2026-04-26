@@ -37,7 +37,7 @@ router.patch("/:id",
 // ── Job Cards ─────────────────────────────────────────────────────────────────
 
 router.post("/:id/job-cards",
-  authGuard, rbacGuard("WORKSHOP"),
+  authGuard, rbacGuard("ACCOUNTS"),
   param("id").isUUID(),
   body("assignedToId").optional().isUUID(),
   validate,

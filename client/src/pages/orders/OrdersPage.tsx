@@ -50,7 +50,7 @@ function DepositForm({ orderId, totalGhs, currentDeposit, onDone }: { orderId: s
   );
 }
 
-function JobCardActions({ orderId, jobCard }: { orderId: string; jobCard: { id: string; status: string } }) {
+function JobCardActions({ orderId, jobCard, canAct }: { orderId: string; jobCard: { id: string; status: string }; canAct: boolean }) {
   const qc = useQueryClient();
   const { mutate, isPending } = useMutation({
     mutationFn: (status: string) => ordersApi.updateJobCard(orderId, jobCard.id, { status }),
@@ -60,6 +60,7 @@ function JobCardActions({ orderId, jobCard }: { orderId: string; jobCard: { id: 
       toast.error(msg);
     },
   });
+  if (!canAct) return null;
   if (jobCard.status === "PENDING") {
     return (
       <button onClick={() => mutate("IN_PROGRESS")} disabled={isPending} className="text-xs text-blue-600 hover:underline disabled:opacity-50">
@@ -81,6 +82,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
   const qc = useQueryClient();
   const role = useAuthStore((s) => s.user?.role);
   const canInvoice = role === "ADMIN" || role === "ACCOUNTS";
+  const canManageJobCards = role === "ADMIN" || role === "ACCOUNTS" || role === "WORKSHOP";
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [costsJobCardId, setCostsJobCardId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["order", order.id], queryFn: () => ordersApi.get(order.id) });
@@ -169,7 +171,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
       {full.approvalStatus !== "PENDING" && full.approvalStatus !== "REJECTED" && (
         <div className="flex gap-2 flex-wrap">
           {full.status === "PENDING" && <button className="btn-secondary" onClick={() => updateStatus("CONFIRMED")}>Confirm Order</button>}
-          {full.status === "CONFIRMED" && jobCards.length === 0 && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
+          {full.status === "CONFIRMED" && jobCards.length === 0 && canInvoice && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
           {full.status === "IN_PRODUCTION" && <button className="btn-secondary" onClick={() => updateStatus("COMPLETED")}>Mark Completed</button>}
           {full.status === "COMPLETED" && <button className="btn-secondary" onClick={() => updateStatus("DELIVERED")}>Mark Delivered</button>}
         </div>
@@ -212,7 +214,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono font-semibold text-violet-700">{jc.jobNumber || jc.id.slice(-8).toUpperCase()}</span>
                   <div className="flex items-center gap-2">
-                    <JobCardActions orderId={order.id} jobCard={jc} />
+                    <JobCardActions orderId={order.id} jobCard={jc} canAct={canManageJobCards} />
                     <button onClick={() => setCostsJobCardId(costsJobCardId === jc.id ? null : jc.id)} className="text-xs text-violet-600 hover:underline">
                       {costsJobCardId === jc.id ? "Hide Costs" : "Costs"}
                     </button>

@@ -3,6 +3,7 @@ import { Wrench, Download } from "lucide-react";
 import toast from "react-hot-toast";
 import { ordersApi } from "@/api/orders";
 import { pdfApi } from "@/api/pdf";
+import { useAuthStore } from "@/store/auth";
 import PageHeader from "@/components/ui/PageHeader";
 import { FullPageSpinner } from "@/components/ui/Spinner";
 import EmptyState from "@/components/ui/EmptyState";
@@ -28,6 +29,8 @@ interface JobCard {
 
 export default function ProductionPage() {
   const qc = useQueryClient();
+  const role = useAuthStore((s) => s.user?.role);
+  const canAct = role === "ADMIN" || role === "ACCOUNTS" || role === "WORKSHOP";
 
   const { data: confirmedData, isLoading: loadingConfirmed } = useQuery({
     queryKey: ["production-orders", "CONFIRMED"],
@@ -55,7 +58,7 @@ export default function ProductionPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {orders.map((order) => (
-            <OrderJobCards key={order.id} orderId={order.id} orderNumber={order.orderNumber} customerName={order.customer?.name ?? "—"} qc={qc} />
+            <OrderJobCards key={order.id} orderId={order.id} orderNumber={order.orderNumber} customerName={order.customer?.name ?? "—"} qc={qc} canAct={canAct} />
           ))}
         </div>
       )}
@@ -63,7 +66,7 @@ export default function ProductionPage() {
   );
 }
 
-function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: string; orderNumber: string; customerName: string; qc: ReturnType<typeof useQueryClient> }) {
+function OrderJobCards({ orderId, orderNumber, customerName, qc, canAct }: { orderId: string; orderNumber: string; customerName: string; qc: ReturnType<typeof useQueryClient>; canAct: boolean }) {
   const { data } = useQuery({ queryKey: ["order", orderId], queryFn: () => ordersApi.get(orderId) });
   const full = data?.data as (typeof data extends { data: infer D } ? D : unknown) & { jobCards?: JobCard[] };
   const jobCards: JobCard[] = (full as { jobCards?: JobCard[] })?.jobCards ?? [];
@@ -130,10 +133,10 @@ function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: st
             )}
 
             <div className="flex gap-2 pt-1 flex-wrap">
-              {jc.status === "PENDING" && (
+              {canAct && jc.status === "PENDING" && (
                 <button onClick={() => updateJC({ jobCardId: jc.id, status: "IN_PROGRESS" })} className="btn-secondary text-xs py-1 px-2">Start</button>
               )}
-              {jc.status === "IN_PROGRESS" && (
+              {canAct && jc.status === "IN_PROGRESS" && (
                 <button onClick={() => updateJC({ jobCardId: jc.id, status: "COMPLETED" })} className="btn-primary text-xs py-1 px-2">Complete</button>
               )}
               <button
