@@ -2,6 +2,9 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../utils/prisma";
 import { AppError } from "../middleware/errorHandler";
 import type { ApprovalEntityType } from "@prisma/client";
+import { nextDocNumber } from "./doc-number.service";
+import { deserializeBOMSnapshot, evaluateFormula } from "./bom-engine";
+import Decimal from "decimal.js";
 
 export async function createApprovalRequest(
   entityType: ApprovalEntityType,
@@ -76,13 +79,71 @@ export async function processApproval(
       });
     }
   } else if (approval.entityType === "ORDER_CONVERSION") {
-    await prisma.order.update({
-      where: { id: approval.entityId },
-      data: {
-        approvalStatus: decision,
-        ...(decision === "APPROVED" && { status: "CONFIRMED" }),
-      },
-    });
+    if (decision === "APPROVED") {
+      const order = await prisma.order.findUniqueOrThrow({
+        where: { id: approval.entityId },
+        include: {
+          items: { include: { bomTemplate: true } },
+          jobCards: true,
+        },
+      });
+
+      await prisma.order.update({
+        where: { id: approval.entityId },
+        data: { approvalStatus: "APPROVED", status: "CONFIRMED" },
+      });
+
+      // Auto-create job cards if none exist yet
+      if (order.jobCards.length === 0) {
+        const jobNumbers = await Promise.all(order.items.map(() => nextDocNumber("JC")));
+
+        await prisma.$transaction(async (tx) => {
+          for (let i = 0; i < order.items.length; i++) {
+            const item = order.items[i];
+            const bom = item.bomSnapshot ? deserializeBOMSnapshot(item.bomSnapshot as Record<string, unknown>) : null;
+
+            const bomInput = {
+              widthCm: Number(item.widthCm),
+              dropCm: Number(item.dropCm),
+              fullnessRatio: Number(item.fullnessRatio),
+              fabricWidthCm: 280,
+            };
+            const standardLabourHours = item.bomTemplate.labourHoursFormula
+              ? evaluateFormula(item.bomTemplate.labourHoursFormula, bomInput).quantity
+              : new Decimal(item.bomTemplate.labourHours.toString());
+
+            await tx.jobCard.create({
+              data: {
+                orderId: order.id,
+                orderItemId: item.id,
+                jobNumber: jobNumbers[i],
+                status: "PENDING",
+                standardLabourHours,
+                notes: `Window: ${item.windowLabel}`,
+                ...(bom && {
+                  materials: {
+                    create: bom.lines.map((line) => ({
+                      materialId: line.materialId,
+                      requiredQty: new Decimal(line.quantity.toString()),
+                    })),
+                  },
+                }),
+              },
+            });
+          }
+
+          await tx.order.update({
+            where: { id: order.id },
+            data: { status: "IN_PRODUCTION" },
+          });
+        });
+      }
+    } else {
+      await prisma.order.update({
+        where: { id: approval.entityId },
+        data: { approvalStatus: "REJECTED" },
+      });
+    }
   }
 
   return prisma.approvalRequest.findUniqueOrThrow({

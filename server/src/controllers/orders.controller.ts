@@ -72,6 +72,17 @@ export async function updateOrder(req: Request, res: Response) {
     status?: string; depositAmount?: string; notes?: string;
   };
 
+  // Block any attempt to manually confirm an order that is awaiting approval
+  if (status === "CONFIRMED" || status === "IN_PRODUCTION") {
+    const current = await prisma.order.findUniqueOrThrow({
+      where: { id: req.params.id },
+      select: { approvalStatus: true },
+    });
+    if ((current as { approvalStatus?: string | null }).approvalStatus === "PENDING") {
+      throw new AppError(403, "This order is awaiting management approval and cannot be progressed manually.");
+    }
+  }
+
   let depositData: object = {};
   if (depositAmount !== undefined) {
     const current = await prisma.order.findUniqueOrThrow({ where: { id: req.params.id }, select: { totalGhs: true } });
@@ -113,6 +124,10 @@ export async function generateJobCards(req: Request, res: Response) {
 
   if (order.status === "CANCELLED") {
     throw new AppError(400, "Cannot generate job cards for a cancelled order.");
+  }
+
+  if (order.status === "PENDING" || (order as { approvalStatus?: string | null }).approvalStatus === "PENDING") {
+    throw new AppError(403, "Cannot generate job cards: this order is awaiting management approval.");
   }
 
   const jobNumbers = await Promise.all(order.items.map(() => nextDocNumber("JC")));

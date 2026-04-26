@@ -115,13 +115,35 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
         />
       )}
 
-      {/* Status actions */}
-      <div className="flex gap-2 flex-wrap">
-        {full.status === "PENDING" && <button className="btn-secondary" onClick={() => updateStatus("CONFIRMED")}>Confirm Order</button>}
-        {full.status === "CONFIRMED" && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
-        {full.status === "IN_PRODUCTION" && <button className="btn-secondary" onClick={() => updateStatus("COMPLETED")}>Mark Completed</button>}
-        {full.status === "COMPLETED" && <button className="btn-secondary" onClick={() => updateStatus("DELIVERED")}>Mark Delivered</button>}
-      </div>
+      {/* Approval status banner */}
+      {full.approvalStatus === "PENDING" && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
+          <span className="mt-0.5 text-base">⏳</span>
+          <div>
+            <p className="font-semibold">Awaiting Management Approval</p>
+            <p className="text-xs text-amber-700 mt-0.5">This high-value order is in the Approvals queue. Production cannot begin until an Admin or Accounts manager approves it.</p>
+          </div>
+        </div>
+      )}
+      {full.approvalStatus === "REJECTED" && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+          <span className="mt-0.5 text-base">🚫</span>
+          <div>
+            <p className="font-semibold">Approval Rejected</p>
+            <p className="text-xs text-red-700 mt-0.5">This order was rejected by management. Please contact your administrator.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Status actions — all hidden while approval is pending */}
+      {full.approvalStatus !== "PENDING" && full.approvalStatus !== "REJECTED" && (
+        <div className="flex gap-2 flex-wrap">
+          {full.status === "PENDING" && <button className="btn-secondary" onClick={() => updateStatus("CONFIRMED")}>Confirm Order</button>}
+          {full.status === "CONFIRMED" && <button className="btn-primary" onClick={() => genCards()} disabled={genPending}>Generate Job Cards</button>}
+          {full.status === "IN_PRODUCTION" && <button className="btn-secondary" onClick={() => updateStatus("COMPLETED")}>Mark Completed</button>}
+          {full.status === "COMPLETED" && <button className="btn-secondary" onClick={() => updateStatus("DELIVERED")}>Mark Delivered</button>}
+        </div>
+      )}
 
       {/* Invoice */}
       {(full.status === "COMPLETED" || full.status === "DELIVERED") && (
