@@ -14,6 +14,7 @@ const ENTITY_LABELS: Record<ApprovalEntityType, string> = {
   PURCHASE_ORDER:       "Purchase Order",
   EXPENSE:              "Expense",
   QUOTE_DISCOUNT:       "Quote Discount",
+  QUOTE_HIGH_VALUE:     "Quote (High Value)",
   INVOICE_CANCELLATION: "Invoice Cancellation",
   STOCK_ADJUSTMENT:     "Stock Adjustment",
   ORDER_CONVERSION:     "Order (High Value)",
@@ -23,6 +24,7 @@ const ENTITY_COLORS: Record<ApprovalEntityType, string> = {
   PURCHASE_ORDER:       "bg-blue-50 text-blue-700",
   EXPENSE:              "bg-orange-50 text-orange-700",
   QUOTE_DISCOUNT:       "bg-violet-50 text-violet-700",
+  QUOTE_HIGH_VALUE:     "bg-rose-50 text-rose-700",
   INVOICE_CANCELLATION: "bg-red-50 text-red-700",
   STOCK_ADJUSTMENT:     "bg-amber-50 text-amber-700",
   ORDER_CONVERSION:     "bg-green-50 text-green-700",
@@ -40,6 +42,7 @@ function contextSummary(req: ApprovalRequest): string {
   if (req.entityType === "PURCHASE_ORDER") return `PO ${c.poNumber ?? ""} · Total GHS ${Number(c.total ?? 0).toLocaleString()}`;
   if (req.entityType === "EXPENSE") return `GHS ${Number(c.amountGhs ?? 0).toLocaleString()} (threshold GHS ${Number(c.thresholdGhs ?? 0).toLocaleString()})`;
   if (req.entityType === "QUOTE_DISCOUNT") return `${c.quoteNumber ?? ""} · ${c.discountRate ?? 0}% discount`;
+  if (req.entityType === "QUOTE_HIGH_VALUE") return `${c.quoteNumber ?? ""} · GHS ${Number(c.totalGhs ?? 0).toLocaleString()} (threshold GHS ${Number(c.thresholdGhs ?? 0).toLocaleString()})`;
   if (req.entityType === "INVOICE_CANCELLATION") return `Invoice ${c.invoiceNumber ?? ""} · GHS ${Number(c.totalGhs ?? 0).toLocaleString()}`;
   if (req.entityType === "STOCK_ADJUSTMENT") return `Qty ${c.quantity ?? 0} · ${c.movementType ?? ""}`;
   if (req.entityType === "ORDER_CONVERSION") return `Order ${c.orderNumber ?? ""} · GHS ${Number(c.totalGhs ?? 0).toLocaleString()}`;

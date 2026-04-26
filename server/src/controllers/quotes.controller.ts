@@ -221,19 +221,31 @@ export async function createQuote(req: Request, res: Response) {
 
   const appliedDiscountRate = body.discountRate ?? 0;
   const quoteRecord = quote as typeof quote & { approvalStatus: string | null };
+
+  // Create separate approval requests for each triggered condition
   if (quoteRecord.approvalStatus === "PENDING") {
-    const reasons: string[] = [];
-    const discountThresholdVal = Number((await prisma.businessSetting.findUnique({ where: { key: "approval.quoteDiscountThresholdPct" } }))?.value ?? "10");
-    const highValThreshold = new Decimal((await prisma.businessSetting.findUnique({ where: { key: "approval.orderTotalThresholdGhs" } }))?.value ?? "5000");
-    if (appliedDiscountRate > discountThresholdVal) reasons.push(`Discount ${appliedDiscountRate}% exceeds the ${discountThresholdVal}% threshold`);
-    if (new Decimal(quote.totalGhs.toString()).gt(highValThreshold)) reasons.push(`Quote total GHS ${Number(quote.totalGhs).toFixed(2)} exceeds the high-value threshold of GHS ${highValThreshold.toFixed(2)}`);
-    await createApprovalRequest("QUOTE_DISCOUNT", quote.id, req.auth!.userId, {
-      quoteNumber: quote.quoteNumber,
-      discountRate: appliedDiscountRate,
-      discountAmountGhs: quote.discountAmountGhs.toString(),
-      totalGhs: quote.totalGhs.toString(),
-      reasons,
-    });
+    const [discountThresholdSetting2, highValueThresholdSetting2] = await Promise.all([
+      prisma.businessSetting.findUnique({ where: { key: "approval.quoteDiscountThresholdPct" } }),
+      prisma.businessSetting.findUnique({ where: { key: "approval.orderTotalThresholdGhs" } }),
+    ]);
+    const discountThresholdVal = Number(discountThresholdSetting2?.value ?? "10");
+    const highValThreshold = new Decimal(highValueThresholdSetting2?.value ?? "5000");
+
+    if (appliedDiscountRate > discountThresholdVal) {
+      await createApprovalRequest("QUOTE_DISCOUNT", quote.id, req.auth!.userId, {
+        quoteNumber: quote.quoteNumber,
+        discountRate: appliedDiscountRate,
+        discountAmountGhs: quote.discountAmountGhs.toString(),
+        totalGhs: quote.totalGhs.toString(),
+      });
+    }
+    if (new Decimal(quote.totalGhs.toString()).gt(highValThreshold)) {
+      await createApprovalRequest("QUOTE_HIGH_VALUE", quote.id, req.auth!.userId, {
+        quoteNumber: quote.quoteNumber,
+        totalGhs: quote.totalGhs.toString(),
+        thresholdGhs: highValThreshold.toString(),
+      });
+    }
   }
 
   sendSuccess(res, quote, quoteRecord.approvalStatus === "PENDING" ? "Quote created — pending management approval." : "Quote created.", 201);

@@ -47,8 +47,25 @@ export async function processApproval(
     await prisma.purchaseOrder.update({ where: { id: approval.entityId }, data: statusUpdate });
   } else if (approval.entityType === "EXPENSE") {
     await prisma.expense.update({ where: { id: approval.entityId }, data: statusUpdate });
-  } else if (approval.entityType === "QUOTE_DISCOUNT") {
-    await prisma.quote.update({ where: { id: approval.entityId }, data: statusUpdate });
+  } else if (approval.entityType === "QUOTE_DISCOUNT" || approval.entityType === "QUOTE_HIGH_VALUE") {
+    if (decision === "REJECTED") {
+      // Reject immediately — no point waiting for the other
+      await prisma.quote.update({ where: { id: approval.entityId }, data: { approvalStatus: "REJECTED" } });
+    } else {
+      // Only mark APPROVED when no other PENDING quote approval requests remain
+      const otherPending = await prisma.approvalRequest.findFirst({
+        where: {
+          entityId: approval.entityId,
+          entityType: { in: ["QUOTE_DISCOUNT", "QUOTE_HIGH_VALUE"] },
+          id: { not: approvalId },
+          status: "PENDING",
+        },
+      });
+      if (!otherPending) {
+        await prisma.quote.update({ where: { id: approval.entityId }, data: { approvalStatus: "APPROVED" } });
+      }
+      // else: other request still pending — leave approvalStatus as PENDING
+    }
   } else if (approval.entityType === "INVOICE_CANCELLATION") {
     await prisma.invoice.update({
       where: { id: approval.entityId },

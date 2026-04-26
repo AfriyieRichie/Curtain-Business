@@ -8,6 +8,7 @@ export type ApprovalEntityType =
   | "PURCHASE_ORDER"
   | "EXPENSE"
   | "QUOTE_DISCOUNT"
+  | "QUOTE_HIGH_VALUE"
   | "INVOICE_CANCELLATION"
   | "STOCK_ADJUSTMENT"
   | "ORDER_CONVERSION";
