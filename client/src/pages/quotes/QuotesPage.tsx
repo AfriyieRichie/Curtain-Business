@@ -108,11 +108,17 @@ export default function QuotesPage() {
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => setViewQuote(q)} className="rounded px-2 py-1 text-xs text-gray-600 hover:bg-gray-100">View</button>
                         <button onClick={() => pdfApi.downloadQuote(q.id).catch(() => toast.error("PDF failed"))} className="rounded px-2 py-1 text-xs text-violet-600 hover:bg-violet-50 flex items-center gap-1"><Download size={12} /> PDF</button>
-                        {(q.status === "DRAFT" || q.status === "SENT") && q.approvalStatus !== "PENDING" && (
+                        {(q.status === "DRAFT" || q.status === "SENT") && !q.approvalStatus && (
+                          <button onClick={() => setConvertQuote(q)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50">Convert</button>
+                        )}
+                        {q.approvalStatus === "APPROVED" && (q.status === "DRAFT" || q.status === "SENT") && (
                           <button onClick={() => setConvertQuote(q)} className="rounded px-2 py-1 text-xs text-green-600 hover:bg-green-50">Convert</button>
                         )}
                         {q.approvalStatus === "PENDING" && (
                           <span className="rounded px-2 py-1 text-xs text-amber-600 bg-amber-50">Pending Approval</span>
+                        )}
+                        {q.approvalStatus === "REJECTED" && (
+                          <span className="rounded px-2 py-1 text-xs text-red-600 bg-red-50">Approval Rejected</span>
                         )}
                       </div>
                     </td>
@@ -144,7 +150,7 @@ export default function QuotesPage() {
               <div><span className="text-gray-500">Valid Until:</span> <span>{formatDate(viewQuote.validUntil)}</span></div>
             </div>
             {viewQuote.notes && <p className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2">{viewQuote.notes}</p>}
-            {viewQuote.status === "DRAFT" && viewQuote.approvalStatus === "PENDING" && (
+            {viewQuote.approvalStatus === "PENDING" && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-start gap-2">
                 <span className="mt-0.5 text-base">⏳</span>
                 <div>
@@ -153,7 +159,22 @@ export default function QuotesPage() {
                 </div>
               </div>
             )}
-            {viewQuote.status === "DRAFT" && viewQuote.approvalStatus !== "PENDING" && (
+            {viewQuote.approvalStatus === "REJECTED" && (
+              <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+                <span className="mt-0.5 text-base">🚫</span>
+                <div>
+                  <p className="font-semibold">Approval Rejected</p>
+                  <p className="text-xs text-red-700 mt-0.5">Management has rejected this quote. It cannot be sent to the customer or converted to an order.</p>
+                </div>
+              </div>
+            )}
+            {viewQuote.status === "DRAFT" && !viewQuote.approvalStatus && (
+              <div className="flex gap-2 pt-2">
+                <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "SENT" })} className="btn-primary">Mark as Sent</button>
+                <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "REJECTED" })} className="btn-danger">Reject</button>
+              </div>
+            )}
+            {viewQuote.status === "DRAFT" && viewQuote.approvalStatus === "APPROVED" && (
               <div className="flex gap-2 pt-2">
                 <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "SENT" })} className="btn-primary">Mark as Sent</button>
                 <button disabled={updatingStatus} onClick={() => updateStatus({ id: viewQuote.id, s: "REJECTED" })} className="btn-danger">Reject</button>

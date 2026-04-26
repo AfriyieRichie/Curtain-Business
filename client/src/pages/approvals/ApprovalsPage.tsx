@@ -51,6 +51,7 @@ function contextSummary(req: ApprovalRequest): string {
 
 function ActionModal({ approval, onClose }: { approval: ApprovalRequest; onClose: () => void }) {
   const [note, setNote] = useState("");
+  const [noteError, setNoteError] = useState(false);
   const qc = useQueryClient();
 
   const invalidate = () => {
@@ -71,6 +72,14 @@ function ActionModal({ approval, onClose }: { approval: ApprovalRequest; onClose
     onError: (e: unknown) => toast.error((e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Failed"),
   });
 
+  function handleReject() {
+    if (!note.trim()) {
+      setNoteError(true);
+      return;
+    }
+    reject(undefined);
+  }
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-gray-50 border border-gray-200 p-4 space-y-1 text-sm">
@@ -83,21 +92,27 @@ function ActionModal({ approval, onClose }: { approval: ApprovalRequest; onClose
         <p className="text-gray-500">Requested by <strong>{approval.requestedBy.name}</strong> · {formatDate(approval.requestedAt)}</p>
       </div>
       <div>
-        <label className="label">Note <span className="font-normal text-gray-400">(required for rejection)</span></label>
+        <label className="label">
+          Note{" "}
+          <span className={`font-normal ${noteError ? "text-red-600 font-semibold" : "text-gray-400"}`}>
+            {noteError ? "— a reason is required to reject" : "(required for rejection)"}
+          </span>
+        </label>
         <textarea
-          className="input resize-none"
+          className={`input resize-none ${noteError ? "border-red-400 ring-1 ring-red-400" : ""}`}
           rows={3}
           value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder="Add a comment…"
+          onChange={(e) => { setNote(e.target.value); if (e.target.value.trim()) setNoteError(false); }}
+          placeholder="Add a reason for rejection…"
+          autoFocus={noteError}
         />
       </div>
       <div className="flex justify-end gap-3">
         <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
         <button
           type="button"
-          onClick={() => reject(undefined)}
-          disabled={rejecting || !note.trim()}
+          onClick={handleReject}
+          disabled={rejecting}
           className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50"
         >
           {rejecting ? <Spinner size="sm" /> : <XCircle size={14} />} Reject

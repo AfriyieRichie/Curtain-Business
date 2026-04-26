@@ -268,6 +268,9 @@ export async function updateQuote(req: Request, res: Response) {
     if (existingWithApproval.approvalStatus === "PENDING") {
       throw new AppError(403, "This quote is awaiting management approval and cannot be sent to the customer until it is approved.");
     }
+    if (existingWithApproval.approvalStatus === "REJECTED") {
+      throw new AppError(403, "This quote has been rejected by management and cannot be sent to the customer.");
+    }
   }
 
   const quote = await prisma.quote.update({
@@ -297,7 +300,10 @@ export async function convertToOrder(req: Request, res: Response) {
 
   const quoteWithApproval = quote as typeof quote & { approvalStatus: string | null };
   if (quoteWithApproval.approvalStatus === "PENDING") {
-    throw new AppError(403, "This quote has a discount pending approval. It cannot be converted until approved.");
+    throw new AppError(403, "This quote is pending management approval and cannot be converted to an order.");
+  }
+  if (quoteWithApproval.approvalStatus === "REJECTED") {
+    throw new AppError(403, "This quote has been rejected by management and cannot be converted to an order.");
   }
 
   const orderTotalThresholdSetting = await prisma.businessSetting.findUnique({
