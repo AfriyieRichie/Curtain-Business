@@ -4,6 +4,7 @@ import { Search, ClipboardList, Receipt } from "lucide-react";
 import toast from "react-hot-toast";
 import { ordersApi } from "@/api/orders";
 import { invoicesApi } from "@/api/invoices";
+import { useAuthStore } from "@/store/auth";
 import PageHeader from "@/components/ui/PageHeader";
 import Pagination from "@/components/ui/Pagination";
 import { FullPageSpinner } from "@/components/ui/Spinner";
@@ -51,6 +52,8 @@ function DepositForm({ orderId, totalGhs, currentDeposit, onDone }: { orderId: s
 
 function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) {
   const qc = useQueryClient();
+  const role = useAuthStore((s) => s.user?.role);
+  const canInvoice = role === "ADMIN" || role === "ACCOUNTS";
   const [showDepositForm, setShowDepositForm] = useState(false);
   const [costsJobCardId, setCostsJobCardId] = useState<string | null>(null);
   const { data, isLoading } = useQuery({ queryKey: ["order", order.id], queryFn: () => ordersApi.get(order.id) });
@@ -157,13 +160,15 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
               </div>
               <span className="text-xs text-gray-400">Go to Invoices to record payment</span>
             </>
-          ) : (
+          ) : canInvoice ? (
             <>
               <span className="text-sm text-gray-600">No invoice generated yet</span>
               <button onClick={() => genInvoice()} disabled={invoicePending} className="btn-primary text-sm py-1.5 px-3 flex items-center gap-1.5">
                 <Receipt size={14} /> {invoicePending ? "Generating…" : "Generate Invoice"}
               </button>
             </>
+          ) : (
+            <span className="text-sm text-gray-500">No invoice generated yet — contact Accounts to generate.</span>
           )}
         </div>
       )}

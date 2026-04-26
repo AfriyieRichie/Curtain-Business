@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Curtains ERP – User Manual</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:15px;line-height:1.7;color:#1f2937;background:#f9fafb;display:flex}
+
+/* ── Sidebar ── */
+#toc{position:fixed;top:0;left:0;width:280px;height:100vh;overflow-y:auto;background:#1e1b4b;color:#c7d2fe;padding:0 0 40px 0;z-index:100;font-size:13px}
+#toc .toc-logo{padding:24px 20px 16px;border-bottom:1px solid #312e81}
+#toc .toc-logo h1{font-size:16px;font-weight:700;color:#fff;line-height:1.3}
+#toc .toc-logo p{font-size:11px;color:#818cf8;margin-top:4px}
+#toc ul{list-style:none;padding:8px 0}
+#toc ul li a{display:block;padding:5px 20px;color:#c7d2fe;text-decoration:none;transition:background .15s}
+#toc ul li a:hover{background:#312e81;color:#fff}
+#toc ul li.section-header{padding:14px 20px 4px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6366f1}
+#toc ul li.sub a{padding-left:36px;font-size:12px;color:#a5b4fc}
+#toc ul li.sub2 a{padding-left:50px;font-size:11.5px;color:#818cf8}
+
+/* ── Main content ── */
+#main{margin-left:280px;max-width:calc(100% - 280px);padding:0}
+.page-cover{background:linear-gradient(135deg,#4f46e5 0%,#7c3aed 100%);color:#fff;padding:80px 60px;text-align:center}
+.page-cover .logo-box{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:rgba(255,255,255,.2);border-radius:16px;font-size:28px;font-weight:900;margin-bottom:24px}
+.page-cover h1{font-size:40px;font-weight:800;margin-bottom:12px}
+.page-cover p{font-size:18px;opacity:.85;max-width:500px;margin:0 auto 24px}
+.page-cover .meta{display:flex;gap:32px;justify-content:center;font-size:13px;opacity:.7}
+
+section{padding:48px 60px;border-bottom:1px solid #e5e7eb}
+section:last-child{border-bottom:none}
+.section-intro{background:#ede9fe;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 8px 8px 0;margin-bottom:32px;color:#4c1d95;font-size:14px}
+
+h2.section-title{font-size:26px;font-weight:800;color:#111827;margin-bottom:8px;padding-top:4px}
+h2.section-title .chapter-num{font-size:13px;font-weight:600;color:#7c3aed;display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+h3{font-size:18px;font-weight:700;color:#1f2937;margin:32px 0 12px;padding-bottom:6px;border-bottom:2px solid #e5e7eb}
+h4{font-size:15px;font-weight:700;color:#374151;margin:24px 0 8px}
+p{margin-bottom:12px}
+
+/* Steps */
+.steps{counter-reset:step;list-style:none;margin:16px 0}
+.steps li{counter-increment:step;display:flex;gap:16px;margin-bottom:16px;align-items:flex-start}
+.steps li::before{content:counter(step);min-width:28px;height:28px;background:#7c3aed;color:#fff;border-radius:50%;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.steps li p{margin:0}
+
+/* Callouts */
+.callout{display:flex;gap:12px;padding:14px 18px;border-radius:8px;margin:20px 0;font-size:14px}
+.callout-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+.callout.tip{background:#ecfdf5;border:1px solid #6ee7b7;color:#065f46}
+.callout.warning{background:#fffbeb;border:1px solid #fcd34d;color:#78350f}
+.callout.info{background:#eff6ff;border:1px solid #93c5fd;color:#1e40af}
+.callout.danger{background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d}
+
+/* Screenshot placeholder */
+.screenshot{border:2px dashed #c4b5fd;background:#faf5ff;border-radius:10px;padding:32px 20px;text-align:center;margin:20px 0;color:#7c3aed}
+.screenshot .label{font-weight:700;font-size:14px;margin-bottom:6px}
+.screenshot .desc{font-size:12px;color:#8b5cf6;line-height:1.5}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+th{background:#f3f4f6;text-align:left;padding:10px 14px;font-weight:600;color:#374151;border:1px solid #e5e7eb}
+td{padding:9px 14px;border:1px solid #e5e7eb;color:#4b5563;vertical-align:top}
+tr:nth-child(even) td{background:#f9fafb}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.badge-violet{background:#ede9fe;color:#5b21b6}
+.badge-green{background:#dcfce7;color:#15803d}
+.badge-amber{background:#fef3c7;color:#92400e}
+.badge-red{background:#fee2e2;color:#991b1b}
+.badge-blue{background:#dbeafe;color:#1d4ed8}
+.badge-gray{background:#f3f4f6;color:#374151}
+
+/* Role pills */
+.role-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;margin:2px}
+.role-admin{background:#ede9fe;color:#5b21b6}
+.role-accounts{background:#dbeafe;color:#1d4ed8}
+.role-sales{background:#dcfce7;color:#15803d}
+.role-workshop{background:#fef3c7;color:#92400e}
+
+ul.bullet{list-style:disc;padding-left:24px;margin:8px 0 16px}
+ul.bullet li{margin-bottom:6px}
+ol.num{padding-left:24px;margin:8px 0 16px}
+ol.num li{margin-bottom:6px}
+
+.field-table td:first-child{font-weight:600;color:#374151;white-space:nowrap;width:200px}
+.workflow-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px;margin:16px 0}
+.workflow-box h5{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6366f1;margin-bottom:12px}
+.flow-step{display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:8px}
+.flow-step .dot{width:8px;height:8px;border-radius:50%;background:#7c3aed;flex-shrink:0}
+.flow-arrow{color:#9ca3af;font-size:18px;text-align:center;margin:4px 0}
+
+@media print{#toc{display:none}#main{margin-left:0;max-width:100%}}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ SIDEBAR TOC ═══════════════════════════ -->
+<nav id="toc">
+  <div class="toc-logo">
+    <h1>Curtains ERP</h1>
+    <p>User Manual v1.0</p>
+  </div>
+  <ul>
+    <li class="section-header">Introduction</li>
+    <li><a href="#overview">System Overview</a></li>
+    <li><a href="#roles">User Roles</a></li>
+    <li><a href="#login">Logging In</a></li>
+    <li><a href="#navigation">Navigation</a></li>
+
+    <li class="section-header">Part 1 – Staff Guide</li>
+    <li><a href="#dashboard">Ch 1 · Dashboard</a></li>
+    <li><a href="#customers">Ch 2 · Customers</a></li>
+    <li><a href="#quotes">Ch 3 · Quotes</a></li>
+    <li class="sub"><a href="#quotes-create">Creating a Quote</a></li>
+    <li class="sub"><a href="#quotes-discount">Applying a Discount</a></li>
+    <li class="sub"><a href="#quotes-convert">Converting to Order</a></li>
+    <li><a href="#orders">Ch 4 · Orders</a></li>
+    <li class="sub"><a href="#orders-deposit">Recording Deposits</a></li>
+    <li class="sub"><a href="#orders-status">Order Statuses</a></li>
+    <li><a href="#production">Ch 5 · Production</a></li>
+    <li class="sub"><a href="#production-jobcards">Job Cards</a></li>
+    <li class="sub"><a href="#production-materials">Issuing Materials</a></li>
+    <li><a href="#invoices">Ch 6 · Invoices &amp; Payments</a></li>
+    <li class="sub"><a href="#invoices-pay">Recording Payments</a></li>
+    <li class="sub"><a href="#invoices-cancel">Cancelling an Invoice</a></li>
+    <li><a href="#expenses">Ch 7 · Expenses</a></li>
+    <li><a href="#approvals-staff">Ch 8 · Approvals</a></li>
+
+    <li class="section-header">Part 2 – Accounts Guide</li>
+    <li><a href="#inventory">Ch 9 · Inventory</a></li>
+    <li class="sub"><a href="#inventory-add">Adding Materials</a></li>
+    <li class="sub"><a href="#inventory-adjust">Stock Adjustments</a></li>
+    <li><a href="#bom">Ch 10 · BOM Templates</a></li>
+    <li class="sub"><a href="#bom-create">Creating Templates</a></li>
+    <li class="sub"><a href="#bom-roles">Fabric &amp; Lining Roles</a></li>
+    <li><a href="#purchasing">Ch 11 · Purchasing</a></li>
+    <li class="sub"><a href="#purchasing-suppliers">Suppliers</a></li>
+    <li class="sub"><a href="#purchasing-po">Purchase Orders</a></li>
+    <li class="sub"><a href="#purchasing-grn">Goods Receipts</a></li>
+    <li class="sub"><a href="#purchasing-lce">Landed Costs</a></li>
+    <li><a href="#reports">Ch 12 · Reports</a></li>
+
+    <li class="section-header">Part 3 – Administration</li>
+    <li><a href="#settings">Ch 13 · Settings</a></li>
+    <li class="sub"><a href="#settings-business">Business Info</a></li>
+    <li class="sub"><a href="#settings-rate">Exchange Rate</a></li>
+    <li class="sub"><a href="#settings-production">Production Costs</a></li>
+    <li class="sub"><a href="#settings-approvals">Approval Thresholds</a></li>
+    <li><a href="#users">Ch 14 · User Management</a></li>
+    <li><a href="#categories">Ch 15 · Material Categories</a></li>
+
+    <li class="section-header">Appendix</li>
+    <li><a href="#appendix-permissions">A · Permissions Matrix</a></li>
+    <li><a href="#appendix-approval-flows">B · Approval Flows</a></li>
+    <li><a href="#appendix-glossary">C · Glossary</a></li>
+    <li><a href="#appendix-quickref">D · Quick Reference</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════ MAIN CONTENT ═══════════════════════════ -->
+<main id="main">
+
+<!-- COVER -->
+<div class="page-cover">
+  <div class="logo-box">C</div>
+  <h1>Curtains ERP</h1>
+  <p>Complete User Manual — Staff, Accounts &amp; Administration</p>
+  <div class="meta">
+    <span>Version 1.0</span>
+    <span>April 2026</span>
+    <span>Elite Curtains Ghana</span>
+  </div>
+</div>
+
+<!-- ─────────────────────────── INTRODUCTION ─────────────────────────── -->
+<section id="overview">
+  <h2 class="section-title"><span class="chapter-num">Introduction</span>System Overview</h2>
+  <div class="section-intro">
+    This manual covers every feature of the Curtains ERP system. Part 1 is written for everyday staff (Sales, Workshop). Part 2 covers Accounts workflows. Part 3 covers system administration for Admins.
+  </div>
+  <p>Curtains ERP is a web-based business management system built for curtain manufacturing and retail businesses. It covers the full commercial cycle — from customer enquiry and quoting through to production, delivery, invoicing, and financial reporting.</p>
+  <p>The system runs entirely in a web browser. No installation is required on individual computers. All data is stored centrally on the company server and accessible to authorised staff from any device on the network.</p>
+  <h3>What the System Covers</h3>
+  <table>
+    <tr><th>Module</th><th>Purpose</th><th>Who uses it</th></tr>
+    <tr><td><strong>Dashboard</strong></td><td>At-a-glance business health, alerts, quick links</td><td>Everyone</td></tr>
+    <tr><td><strong>Customers</strong></td><td>Customer records and window measurements</td><td>Sales, Admin</td></tr>
+    <tr><td><strong>Quotes</strong></td><td>Price quotes generated from BOM templates</td><td>Sales, Admin</td></tr>
+    <tr><td><strong>Orders</strong></td><td>Confirmed jobs with deposits and delivery dates</td><td>Everyone</td></tr>
+    <tr><td><strong>Production</strong></td><td>Job cards, material issuance, status tracking</td><td>Workshop, Admin</td></tr>
+    <tr><td><strong>Invoices</strong></td><td>Customer invoices and payment recording</td><td>Accounts, Admin</td></tr>
+    <tr><td><strong>Inventory</strong></td><td>Material catalogue, stock levels, movements</td><td>Accounts, Workshop, Admin</td></tr>
+    <tr><td><strong>BOM Templates</strong></td><td>Bill-of-materials recipes for each curtain type</td><td>Admin</td></tr>
+    <tr><td><strong>Purchasing</strong></td><td>Supplier management, POs, goods receipt, landed costs</td><td>Accounts, Admin</td></tr>
+    <tr><td><strong>Expenses</strong></td><td>Operating expense log with overhead allocation</td><td>Accounts, Admin</td></tr>
+    <tr><td><strong>Reports</strong></td><td>Sales, VAT, and overhead reports</td><td>Accounts, Admin</td></tr>
+    <tr><td><strong>Approvals</strong></td><td>Authorisation inbox for controlled actions</td><td>Accounts, Admin</td></tr>
+    <tr><td><strong>Settings</strong></td><td>Business configuration, users, thresholds</td><td>Admin</td></tr>
+  </table>
+</section>
+
+<section id="roles">
+  <h2 class="section-title"><span class="chapter-num">Introduction</span>User Roles</h2>
+  <p>Every user account is assigned one of four roles. The role controls which pages and actions are available to that user.</p>
+  <table>
+    <tr><th>Role</th><th>Typical Person</th><th>Access Level</th></tr>
+    <tr>
+      <td><span class="badge badge-violet">ADMIN</span></td>
+      <td>Business owner / Manager</td>
+      <td>Full access to everything including settings, user management, BOM templates, and all approval actions.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-blue">ACCOUNTS</span></td>
+      <td>Accountant / Finance officer</td>
+      <td>Full financial access — invoices, purchasing, expenses, reports, inventory. Can action approvals. Cannot manage users or change system settings.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-green">SALES</span></td>
+      <td>Sales representative</td>
+      <td>Customers, quotes, orders. Can view the dashboard and production status. Cannot access financial reports or purchasing.</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-amber">WORKSHOP</span></td>
+      <td>Production staff / Tailor</td>
+      <td>Production job cards, inventory (view and issue materials). Can see orders. No financial access.</td>
+    </tr>
+  </table>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>If you cannot see a menu item or a button, it is likely because your role does not include that permission. Contact your system administrator if you believe you need additional access.</div></div>
+</section>
+
+<section id="login">
+  <h2 class="section-title"><span class="chapter-num">Introduction</span>Logging In</h2>
+  <p>Open your web browser and navigate to the system URL provided by your administrator (typically <strong>http://localhost:5173</strong> on the local network).</p>
+  <ol class="steps">
+    <li><p>Enter your <strong>email address</strong> in the Email field.</p></li>
+    <li><p>Enter your <strong>password</strong> in the Password field.</p></li>
+    <li><p>Click <strong>Sign In</strong>. You will be taken to the Dashboard.</p></li>
+  </ol>
+  <div class="screenshot"><div class="label">📸 Screenshot: Login Page</div><div class="desc">Capture the login screen showing the email/password form and the violet "Sign In" button.</div></div>
+  <h3>First-Time Login / Password Change</h3>
+  <p>If your account was newly created by an administrator, you will be redirected to a <strong>Change Password</strong> screen immediately after your first login. You must set a new password before you can access the system. Passwords must be at least 8 characters.</p>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div><strong>Never share your password.</strong> Each staff member must have their own account. Shared accounts make it impossible to trace who performed which action.</div></div>
+</section>
+
+<section id="navigation">
+  <h2 class="section-title"><span class="chapter-num">Introduction</span>Navigating the Application</h2>
+  <p>The application has two main areas: the <strong>sidebar navigation</strong> on the left and the <strong>main content area</strong> on the right.</p>
+  <div class="screenshot"><div class="label">📸 Screenshot: Main Application Layout</div><div class="desc">Capture the full application with the sidebar visible on the left and the Dashboard open on the right.</div></div>
+  <h4>The Sidebar</h4>
+  <ul class="bullet">
+    <li>Lists all modules you have access to, based on your role.</li>
+    <li>The currently active page is highlighted in violet.</li>
+    <li>The <strong>Approvals</strong> item shows a violet badge with the number of pending requests waiting for action (visible to Admin and Accounts only).</li>
+    <li>At the bottom of the sidebar, the current <strong>USD → GHS exchange rate</strong> is displayed. Admin users can click the pencil icon to update it.</li>
+  </ul>
+  <h4>Page Layout Conventions</h4>
+  <ul class="bullet">
+    <li><strong>Tab bars</strong> — many pages have tabs (e.g. Purchase Orders / Suppliers / Landed Costs). Click the tab label to switch views.</li>
+    <li><strong>Modal dialogs</strong> — forms for creating and editing records open in a modal overlay. Click Cancel or press Escape to close without saving.</li>
+    <li><strong>Status badges</strong> — coloured pills indicating the current state of a record (e.g. <span class="badge badge-amber">PENDING</span>, <span class="badge badge-green">PAID</span>, <span class="badge badge-red">CANCELLED</span>).</li>
+    <li><strong>Toast notifications</strong> — brief pop-up messages in the top-right corner confirm success or report errors.</li>
+  </ul>
+</section>
+
+<!-- ═══════════════════ PART 1 – STAFF GUIDE ═══════════════════ -->
+
+<section id="dashboard">
+  <h2 class="section-title"><span class="chapter-num">Chapter 1 · Staff Guide</span>Dashboard</h2>
+  <div class="section-intro">The Dashboard is the first page you see after logging in. It gives a live summary of the business and quick access to common actions.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Dashboard</div><div class="desc">Capture the full Dashboard page showing KPI cards, alert cards, and the Quick Actions section.</div></div>
+  <h3>KPI Cards</h3>
+  <p>The top row of the dashboard shows key performance indicators updated in real time:</p>
+  <table>
+    <tr><th>Card</th><th>What it shows</th></tr>
+    <tr><td><strong>Total Customers</strong></td><td>Number of customer records in the system.</td></tr>
+    <tr><td><strong>Active Orders</strong></td><td>Orders that are currently in progress (not delivered or cancelled).</td></tr>
+    <tr><td><strong>Pending POs</strong></td><td>Purchase orders that have been sent to suppliers but not yet fully received.</td></tr>
+    <tr><td><strong>Pending Approvals</strong></td><td>Number of requests waiting for authorisation. Only visible to Admin/Accounts.</td></tr>
+    <tr><td><strong>Monthly Revenue</strong></td><td>Total payments recorded this calendar month.</td></tr>
+    <tr><td><strong>Low Stock Items</strong></td><td>Count of materials at or below their minimum stock level.</td></tr>
+  </table>
+  <h3>Alert Cards</h3>
+  <p>Below the KPI row, amber alert cards highlight items that need attention — for example, low stock materials or overdue invoices. Click the card or navigate to the relevant module to take action.</p>
+  <h3>Quick Actions</h3>
+  <p>The Quick Actions section provides one-click links to the most common tasks: New Quote, New Customer, New Purchase Order, and View Reports.</p>
+</section>
+
+<section id="customers">
+  <h2 class="section-title"><span class="chapter-num">Chapter 2 · Staff Guide</span>Customers</h2>
+  <div class="section-intro">The Customers module stores all client records including contact details and window measurements. Accurate customer records are essential for quotes and invoices.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Customers List</div><div class="desc">Capture the Customers page showing the table of customers with name, phone, email, and total spent columns.</div></div>
+  <h3>Viewing Customers</h3>
+  <p>Navigate to <strong>Customers</strong> in the sidebar. The page shows a searchable, paginated table of all customers. Use the search bar at the top to find a customer by name, phone, or email.</p>
+  <h3>Adding a New Customer</h3>
+  <ol class="steps">
+    <li><p>Click the <strong>New Customer</strong> button (top right of the page).</p></li>
+    <li><p>Fill in the customer's <strong>Name</strong> (required), phone, email, and address.</p></li>
+    <li><p>Click <strong>Save</strong>. The customer is added to the list immediately.</p></li>
+  </ol>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>At minimum, always record the customer's <strong>name and phone number</strong>. An email address enables the system to send quotes directly to the customer.</div></div>
+  <h3 id="customers-windows">Recording Window Measurements</h3>
+  <p>Window measurements are stored against each customer and can be pre-loaded when creating a quote. This saves time for repeat customers.</p>
+  <ol class="steps">
+    <li><p>Open the customer record by clicking their name in the list.</p></li>
+    <li><p>Scroll to the <strong>Windows</strong> section and click <strong>Add Window</strong>.</p></li>
+    <li><p>Enter the <strong>Room Name</strong> (e.g. "Living Room"), <strong>Width (cm)</strong>, <strong>Drop (cm)</strong>, and <strong>Quantity</strong>.</p></li>
+    <li><p>Click <strong>Save</strong>. Repeat for each window or room.</p></li>
+  </ol>
+  <table class="field-table">
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td>Room Name</td><td>Label to identify the window location. Used on quotes and job cards.</td></tr>
+    <tr><td>Width (cm)</td><td>The track or rod width in centimetres.</td></tr>
+    <tr><td>Drop (cm)</td><td>The finished drop length from track to hem in centimetres.</td></tr>
+    <tr><td>Quantity</td><td>Number of identical windows in this room (e.g. 2 matching windows).</td></tr>
+  </table>
+</section>
+
+<section id="quotes">
+  <h2 class="section-title"><span class="chapter-num">Chapter 3 · Staff Guide</span>Quotes</h2>
+  <div class="section-intro">Quotes are price proposals generated for customers. The system automatically calculates material costs using BOM templates, so quotes are fast and consistent.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Quotes List</div><div class="desc">Capture the Quotes page showing the list of quotes with status badges, customer names, and totals.</div></div>
+  <h3>Quote Statuses</h3>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge badge-gray">DRAFT</span></td><td>Being prepared, not yet sent to the customer.</td></tr>
+    <tr><td><span class="badge badge-blue">SENT</span></td><td>Presented or emailed to the customer, awaiting their response.</td></tr>
+    <tr><td><span class="badge badge-green">ACCEPTED</span></td><td>Customer has accepted. Can be converted to an order.</td></tr>
+    <tr><td><span class="badge badge-red">REJECTED</span></td><td>Customer declined the quote.</td></tr>
+    <tr><td><span class="badge badge-amber">EXPIRED</span></td><td>The validity date has passed.</td></tr>
+  </table>
+
+  <h3 id="quotes-create">Creating a New Quote</h3>
+  <ol class="steps">
+    <li><p>Click <strong>New Quote</strong> on the Quotes page.</p></li>
+    <li><p>Select the <strong>Customer</strong> from the dropdown. If the customer is new, go to the Customers module first and create their record.</p></li>
+    <li><p>Set a <strong>Valid Until</strong> date (e.g. 30 days from today). After this date the quote is marked expired.</p></li>
+    <li><p>Add <strong>line items</strong> — one for each window or group of windows. Click <strong>Add Item</strong> for each line.</p></li>
+    <li><p>For each line item, complete the fields described in the table below.</p></li>
+    <li><p>Review the <strong>cost summary</strong> at the bottom (material cost, labour, overhead, markup, total).</p></li>
+    <li><p>Click <strong>Create Quote</strong>. The quote is saved as DRAFT.</p></li>
+  </ol>
+  <div class="screenshot"><div class="label">📸 Screenshot: New Quote Form</div><div class="desc">Capture the quote creation form showing customer selection, line items editor with curtain type/BOM/fabric fields, and the cost summary at the bottom.</div></div>
+  <h4>Quote Line Item Fields</h4>
+  <table class="field-table">
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td>Window Label</td><td>Name for this window (e.g. "Master Bedroom" or "Living Room Left"). Pulled from customer windows if set.</td></tr>
+    <tr><td>Curtain Type</td><td>The style: Eyelet, Pinch Pleat, Roman Blind, etc.</td></tr>
+    <tr><td>BOM Template</td><td>The recipe/formula to use. Auto-populates when curtain type is selected.</td></tr>
+    <tr><td>Width (cm)</td><td>Track/rod width. Auto-fills from customer windows.</td></tr>
+    <tr><td>Drop (cm)</td><td>Finished drop length. Auto-fills from customer windows.</td></tr>
+    <tr><td>Fullness Ratio</td><td>How much fabric is gathered. 2.0 = double fullness (standard eyelet). 2.5 = pinch pleat.</td></tr>
+    <tr><td>Fabric Material</td><td>The main fabric. Selecting a different fabric overrides the BOM default and recalculates costs.</td></tr>
+    <tr><td>Lining Material</td><td>Optional lining fabric. Leave blank for unlined curtains.</td></tr>
+    <tr><td>Quantity</td><td>Number of identical sets for this window label.</td></tr>
+    <tr><td>Unit Price (GHS)</td><td>Selling price per unit. Suggested price is auto-calculated; you can override it.</td></tr>
+  </table>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>When you change the <strong>Fabric Material</strong>, the system recalculates the material cost using that fabric's unit cost and the formula in the BOM template. The suggested selling price updates automatically.</div></div>
+
+  <h3 id="quotes-discount">Applying a Discount</h3>
+  <p>A percentage discount can be applied to the entire quote total.</p>
+  <ol class="steps">
+    <li><p>In the quote form, find the <strong>Discount %</strong> field below the line items table.</p></li>
+    <li><p>Enter the discount percentage (e.g. <code>5</code> for 5%).</p></li>
+    <li><p>The <strong>subtotal, discount amount, VAT, and total</strong> fields update immediately.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div><strong>Discount Approval Gate:</strong> If the discount exceeds the configured threshold (default: <strong>10%</strong>), the quote is saved with an <span class="badge badge-amber">Awaiting Approval</span> status. It cannot be converted to an order until an Admin or Accounts user approves it in the Approvals module. See Chapter 8.</div></div>
+
+  <h3 id="quotes-convert">Converting a Quote to an Order</h3>
+  <p>Once a customer accepts a quote, convert it to a confirmed order.</p>
+  <ol class="steps">
+    <li><p>Open the quote by clicking its number in the Quotes list.</p></li>
+    <li><p>Click <strong>Mark as Accepted</strong> (changes the quote status to ACCEPTED).</p></li>
+    <li><p>Click <strong>Convert to Order</strong>.</p></li>
+    <li><p>Enter the <strong>Deposit Amount (GHS)</strong> received from the customer.</p></li>
+    <li><p>Set the <strong>Delivery Date</strong> if known.</p></li>
+    <li><p>Click <strong>Confirm</strong>. An order is created and a job card is automatically generated for the workshop.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div><strong>High-Value Order Approval:</strong> If the order total exceeds the configured threshold (default: <strong>GHS 5,000</strong>), the order is created in a PENDING state pending management approval. Production cannot begin until it is approved. See Chapter 8.</div></div>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>A quote with a <strong>pending discount approval</strong> cannot be converted to an order. The Convert button will be disabled until the discount is approved or reduced below the threshold.</div></div>
+</section>
+
+<section id="orders">
+  <h2 class="section-title"><span class="chapter-num">Chapter 4 · Staff Guide</span>Orders</h2>
+  <div class="section-intro">Orders represent confirmed jobs. Once created from a quote, orders move through production and delivery stages until they are completed and invoiced.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Orders List</div><div class="desc">Capture the Orders page showing the list with order numbers, customer names, status badges, totals, and deposit/balance columns.</div></div>
+  <h3 id="orders-status">Order Status Flow</h3>
+  <div class="workflow-box">
+    <h5>Normal Progression</h5>
+    <div class="flow-step"><div class="dot"></div><span><span class="badge badge-amber">PENDING</span> → Created, awaiting approval (high-value) or awaiting confirmation</span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span><span class="badge badge-blue">CONFIRMED</span> → Approved and confirmed, job card created</span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span><span class="badge badge-violet">IN_PRODUCTION</span> → Workshop has started cutting/sewing</span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span><span class="badge badge-green">COMPLETED</span> → All items sewn and quality-checked</span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span><span class="badge badge-green">DELIVERED</span> → Delivered and installed at customer premises</span></div>
+  </div>
+  <p>An order can be <span class="badge badge-red">CANCELLED</span> at any point before delivery.</p>
+
+  <h3 id="orders-deposit">Recording a Deposit</h3>
+  <p>The deposit amount is set when the order is created from a quote. The <strong>Balance Due</strong> is automatically calculated as <em>Total − Deposit</em>. Full payment is recorded through the Invoices module once the job is delivered.</p>
+
+  <h3>Order Details</h3>
+  <p>Click any order number to open the detail view. This shows:</p>
+  <ul class="bullet">
+    <li>All line items (windows, curtain types, fabrics, quantities)</li>
+    <li>The production status of each item (Pending → Cutting → Sewing → Completed)</li>
+    <li>Financial summary: subtotal, discount, VAT, total, deposit paid, balance due</li>
+    <li>Linked job cards and their current status</li>
+    <li>The linked invoice (once raised)</li>
+  </ul>
+  <div class="screenshot"><div class="label">📸 Screenshot: Order Detail View</div><div class="desc">Capture an open order detail showing line items, production statuses, financial summary, and the linked job card/invoice.</div></div>
+</section>
+
+<section id="production">
+  <h2 class="section-title"><span class="chapter-num">Chapter 5 · Staff Guide</span>Production</h2>
+  <div class="section-intro">The Production module is primarily used by Workshop staff. It shows job cards for each order, tracks what materials need to be issued, and lets staff update the progress of each job.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Production Page</div><div class="desc">Capture the Production page showing the list of job cards with order numbers, customer names, status badges, and material issuance status.</div></div>
+  <h3 id="production-jobcards">Understanding Job Cards</h3>
+  <p>A job card is automatically created when an order is confirmed. One job card covers all the curtains in one order. The job card lists every material required (fabric, lining, heading tape, eyelets, weights, etc.) calculated from the BOM template, and tracks which materials have been physically issued from the store.</p>
+  <table class="field-table">
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td>Job Number</td><td>Unique identifier e.g. JOB-2026-0042</td></tr>
+    <tr><td>Order Number</td><td>The order this job belongs to</td></tr>
+    <tr><td>Customer</td><td>Customer name for reference</td></tr>
+    <tr><td>Status</td><td>PENDING → IN_PROGRESS → COMPLETED</td></tr>
+    <tr><td>Assigned To</td><td>Workshop staff member responsible</td></tr>
+    <tr><td>Materials</td><td>List of required materials with required and issued quantities</td></tr>
+  </table>
+  <h3 id="production-materials">Issuing Materials</h3>
+  <p>Before cutting can begin, materials must be issued from the store.</p>
+  <ol class="steps">
+    <li><p>Open the job card by clicking the Job Number.</p></li>
+    <li><p>Review the <strong>Materials Required</strong> list. Each line shows the material code, description, required quantity, and issued quantity.</p></li>
+    <li><p>Click <strong>Issue Materials</strong> next to each line once the physical material has been taken from stock.</p></li>
+    <li><p>The stock level for that material is automatically reduced.</p></li>
+    <li><p>Once all materials are issued, click <strong>Start Job</strong> to move the job to IN_PROGRESS.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div>Only issue materials when you are physically taking them from the store. Issuing without taking the material causes stock discrepancies.</div></div>
+  <h3>Updating Production Status</h3>
+  <p>Workshop staff update the status of each order line item as work progresses:</p>
+  <ul class="bullet">
+    <li><span class="badge badge-gray">PENDING</span> → Not yet started</li>
+    <li><span class="badge badge-blue">CUTTING</span> → Fabric is being cut</li>
+    <li><span class="badge badge-violet">SEWING</span> → Stitching in progress</li>
+    <li><span class="badge badge-green">COMPLETED</span> → Finished and quality-checked</li>
+  </ul>
+  <p>When all items in a job are COMPLETED, the job card status is automatically set to COMPLETED and the linked order moves to the COMPLETED stage.</p>
+</section>
+
+<section id="invoices">
+  <h2 class="section-title"><span class="chapter-num">Chapter 6 · Staff Guide</span>Invoices &amp; Payments</h2>
+  <div class="section-intro">Invoices are the financial documents sent to customers for payment. They are created from completed orders and track the full payment history.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Invoices List</div><div class="desc">Capture the Invoices page showing the table with invoice numbers, customer names, issue dates, totals, amounts paid, balances, and status badges.</div></div>
+  <h3>Invoice Statuses</h3>
+  <table>
+    <tr><th>Status</th><th>Meaning</th></tr>
+    <tr><td><span class="badge badge-gray">DRAFT</span></td><td>Created but not yet sent to customer.</td></tr>
+    <tr><td><span class="badge badge-blue">SENT</span></td><td>Emailed or handed to customer.</td></tr>
+    <tr><td><span class="badge badge-violet">PARTIAL</span></td><td>Some payment received but balance remains outstanding.</td></tr>
+    <tr><td><span class="badge badge-green">PAID</span></td><td>Fully paid. Balance is GHS 0.</td></tr>
+    <tr><td><span class="badge badge-red">OVERDUE</span></td><td>Due date has passed with outstanding balance. Set automatically by the system.</td></tr>
+    <tr><td><span class="badge badge-red">CANCELLED</span></td><td>Invoice has been voided. Requires approval if it was SENT or PAID.</td></tr>
+  </table>
+
+  <h3>Creating an Invoice</h3>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div><strong>Who can generate invoices:</strong> Only <strong>Admin</strong> and <strong>Accounts</strong> users can create invoices. Sales and Workshop users will see a note on completed orders directing them to contact Accounts.</div></div>
+  <p>Invoices are generated directly from the <strong>Orders</strong> page — not from the Invoices page. The Invoices page is for viewing, payment recording, and emailing only.</p>
+  <ol class="steps">
+    <li><p>Navigate to <strong>Orders</strong> and open a <span class="badge badge-green">COMPLETED</span> or <span class="badge badge-blue">DELIVERED</span> order by clicking <strong>View</strong>.</p></li>
+    <li><p>Scroll to the Invoice section at the bottom of the order detail. Click <strong>Generate Invoice</strong>.</p></li>
+    <li><p>The system automatically:<br>
+      • Pulls all line items from the order<br>
+      • Applies the current VAT rate from Settings<br>
+      • Credits any deposit already recorded on the order<br>
+      • Sets the due date to 30 days from today<br>
+      • Marks the order status as <span class="badge badge-blue">DELIVERED</span>
+    </p></li>
+    <li><p>The invoice is created as <span class="badge badge-gray">DRAFT</span>. The order detail now shows the invoice number instead of the Generate button.</p></li>
+    <li><p>Go to <strong>Invoices</strong>, find the new invoice, and click <strong>Mark as Sent</strong> when ready to share with the customer — or click <strong>Email to Customer</strong> to send it directly by email (requires an email address on the customer record).</p></li>
+  </ol>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>The invoice total includes the deposit already paid. The system shows both the total and the <strong>balance due</strong> (total minus any payments recorded). You cannot adjust line items on the invoice — if the amounts are wrong, correct the order first before generating.</div></div>
+
+  <h3 id="invoices-pay">Recording Payments</h3>
+  <ol class="steps">
+    <li><p>Open the invoice by clicking its number.</p></li>
+    <li><p>Click <strong>Record Payment</strong>.</p></li>
+    <li><p>Enter the <strong>Amount (GHS)</strong>, <strong>Payment Method</strong>, <strong>Payment Date</strong>, and an optional <strong>Reference</strong> (e.g. mobile money transaction ID).</p></li>
+    <li><p>Click <strong>Save Payment</strong>. The invoice balance updates immediately.</p></li>
+    <li><p>When the balance reaches GHS 0, the invoice is automatically marked as <span class="badge badge-green">PAID</span>.</p></li>
+  </ol>
+  <div class="screenshot"><div class="label">📸 Screenshot: Record Payment Modal</div><div class="desc">Capture the "Record Payment" modal showing amount, method, date, and reference fields.</div></div>
+  <h4>Accepted Payment Methods</h4>
+  <ul class="bullet">
+    <li>Cash</li>
+    <li>Bank Transfer</li>
+    <li>Mobile Money (MTN, Telecel, AirtelTigo)</li>
+    <li>Cheque</li>
+    <li>Other</li>
+  </ul>
+
+  <h3 id="invoices-cancel">Requesting Invoice Cancellation</h3>
+  <p>To cancel an invoice that has already been sent or paid:</p>
+  <ol class="steps">
+    <li><p>Open the invoice.</p></li>
+    <li><p>Change the status to <strong>Cancelled</strong> using the status dropdown.</p></li>
+    <li><p>The system will <em>not</em> cancel it immediately. Instead, a cancellation request is submitted to the Approvals queue.</p></li>
+    <li><p>An Admin or Accounts manager will review and approve or reject the cancellation. You will see the <span class="badge badge-amber">Awaiting Approval</span> badge on the invoice until a decision is made.</p></li>
+  </ol>
+  <div class="callout danger"><span class="callout-icon">🚫</span><div>Cancelling a PAID invoice is a significant financial action. It will only be approved if there is a valid business reason. Provide a clear explanation when making the request.</div></div>
+</section>
+
+<section id="expenses">
+  <h2 class="section-title"><span class="chapter-num">Chapter 7 · Staff Guide</span>Expenses</h2>
+  <div class="section-intro">The Expenses module records all business operating costs — electricity, rent, consumables, transport, etc. These feed into the overhead reports used to price jobs accurately.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Expenses Page</div><div class="desc">Capture the Expenses page showing the date filter, type filter, expense table, and the summary row at the top.</div></div>
+  <h3>Logging an Expense</h3>
+  <ol class="steps">
+    <li><p>Click <strong>Log Expense</strong>.</p></li>
+    <li><p>Enter the <strong>Date</strong>, <strong>Amount (GHS)</strong>, and <strong>Description</strong> (e.g. "Electricity bill – April").</p></li>
+    <li><p>Select the <strong>Type</strong>: Admin, Factory, or Shared (see below).</p></li>
+    <li><p>Optionally assign it to a <strong>Category</strong> and add a <strong>Note</strong>.</p></li>
+    <li><p>Click <strong>Log Expense</strong>.</p></li>
+  </ol>
+  <h3>Expense Types Explained</h3>
+  <table>
+    <tr><th>Type</th><th>Examples</th><th>How it's used</th></tr>
+    <tr><td><span class="badge badge-blue">ADMIN</span></td><td>Office rent, salaries, stationery, marketing</td><td>Allocated to administrative overhead. Does not affect production costs.</td></tr>
+    <tr><td><span class="badge badge-amber">FACTORY</span></td><td>Electricity for sewing machines, workshop rent, machinery maintenance</td><td>Directly allocated to factory/production overhead. Affects the overhead rate per labour hour.</td></tr>
+    <tr><td><span class="badge badge-violet">SHARED</span></td><td>Generator fuel, general cleaning, shared utilities</td><td>Split 65% Factory / 35% Admin automatically by the system.</td></tr>
+  </table>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div><strong>Expense Approval Gate:</strong> Expenses above the configured threshold (default: <strong>GHS 500</strong>) are held with <span class="badge badge-amber">Awaiting Approval</span> status. They appear in the Approvals inbox for an Admin or Accounts manager to authorise before being included in reports.</div></div>
+  <h3>Filtering Expenses</h3>
+  <p>Use the <strong>From / To</strong> date pickers and the <strong>Type</strong> dropdown to filter the expense list to a specific period or expense type. The total for the filtered view is shown in the filter bar.</p>
+</section>
+
+<section id="approvals-staff">
+  <h2 class="section-title"><span class="chapter-num">Chapter 8 · Staff Guide</span>Approvals</h2>
+  <div class="section-intro">The Approvals module is an authorisation inbox for Admin and Accounts users. Certain actions in the system require sign-off before they take effect — this chapter explains the full approval workflow.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Approvals Page – Pending Tab</div><div class="desc">Capture the Approvals page with the Pending tab active, showing the table of pending requests with entity type badges and Review buttons.</div></div>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>Only <strong>Admin</strong> and <strong>Accounts</strong> users can see the Approvals page and action requests.</div></div>
+  <h3>What Requires Approval</h3>
+  <table>
+    <tr><th>Action</th><th>Trigger</th><th>Default Threshold</th></tr>
+    <tr><td>Purchase Order → Send to Supplier</td><td>Every PO must be approved before it can be sent</td><td>All POs</td></tr>
+    <tr><td>Expense logging</td><td>Expense amount exceeds threshold</td><td>GHS 500</td></tr>
+    <tr><td>Quote discount</td><td>Discount rate exceeds threshold</td><td>10%</td></tr>
+    <tr><td>Order conversion</td><td>Order total exceeds threshold</td><td>GHS 5,000</td></tr>
+    <tr><td>Invoice cancellation</td><td>Cancelling a SENT, PARTIAL, or PAID invoice</td><td>All such cancellations</td></tr>
+    <tr><td>Manual stock adjustment</td><td>MANUAL_ADJUSTMENT or DAMAGE movement type</td><td>All manual/damage adjustments</td></tr>
+  </table>
+  <h3>Reviewing a Request</h3>
+  <ol class="steps">
+    <li><p>Navigate to <strong>Approvals</strong> in the sidebar. The number badge shows how many items are pending.</p></li>
+    <li><p>The <strong>Pending</strong> tab is shown by default. Each row shows the request type, a summary of what is being approved, who requested it, and when.</p></li>
+    <li><p>Click <strong>Review</strong> on any row to open the review dialog.</p></li>
+    <li><p>Read the request details carefully. Optionally type a <strong>Note</strong> (required for rejections).</p></li>
+    <li><p>Click <strong>Approve</strong> (green) or <strong>Reject</strong> (red).</p></li>
+  </ol>
+  <div class="screenshot"><div class="label">📸 Screenshot: Approval Review Modal</div><div class="desc">Capture the review modal showing the entity type badge, context summary (e.g. PO number and total), note textarea, and the Approve/Reject buttons.</div></div>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Switch to the <strong>All Requests</strong> tab to see historical approvals — who approved or rejected what, and any notes left.</div></div>
+  <h3>What Happens After Approval or Rejection</h3>
+  <table>
+    <tr><th>Entity</th><th>On Approval</th><th>On Rejection</th></tr>
+    <tr><td>Purchase Order</td><td>PO becomes sendable to supplier</td><td>PO stays DRAFT; requester must edit and re-submit</td></tr>
+    <tr><td>Expense</td><td>Expense is marked Approved and included in reports</td><td>Expense is marked Rejected</td></tr>
+    <tr><td>Quote Discount</td><td>Quote can be converted to order</td><td>Quote remains blocked; discount must be reduced</td></tr>
+    <tr><td>Order Conversion</td><td>Order moves to CONFIRMED; job card is activated</td><td>Order stays PENDING</td></tr>
+    <tr><td>Invoice Cancellation</td><td>Invoice status is set to CANCELLED</td><td>Invoice remains in its current status</td></tr>
+    <tr><td>Stock Adjustment</td><td>Stock quantity is updated immediately</td><td>Movement is marked Rejected; stock unchanged</td></tr>
+  </table>
+</section>
+
+<!-- ═══════════════════ PART 2 – ACCOUNTS GUIDE ═══════════════════ -->
+
+<section id="inventory">
+  <h2 class="section-title"><span class="chapter-num">Chapter 9 · Accounts Guide</span>Inventory Management</h2>
+  <div class="section-intro">The Inventory module is the master catalogue of all materials used in production and supplied to customers. Accurate inventory is critical for correct job costing and stock control.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Inventory / Materials List</div><div class="desc">Capture the Inventory page showing the materials table with code, name, category, unit, current stock, and min stock columns.</div></div>
+  <h3 id="inventory-add">Adding a New Material</h3>
+  <ol class="steps">
+    <li><p>Click <strong>New Material</strong>.</p></li>
+    <li><p>Fill in all required fields (see table below).</p></li>
+    <li><p>Click <strong>Save</strong>.</p></li>
+  </ol>
+  <table class="field-table">
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td>Code</td><td>Short unique identifier (e.g. FAB-LIN-001). Used on job cards and GRNs.</td></tr>
+    <tr><td>Name</td><td>Descriptive name (e.g. Belgian Linen Natural).</td></tr>
+    <tr><td>Category</td><td>Material group (Fabric, Lining, Track &amp; Rod, etc.). Managed in Settings.</td></tr>
+    <tr><td>Unit of Measure</td><td>METER, PIECE, ROLL, PACK, or SET.</td></tr>
+    <tr><td>Purchase Currency</td><td>USD or GHS. Most imported fabrics are USD.</td></tr>
+    <tr><td>Unit Cost (USD)</td><td>Price paid to supplier per unit. GHS equivalent is calculated using the current exchange rate.</td></tr>
+    <tr><td>Selling Price (GHS)</td><td>Suggested retail price. Auto-calculated using markup ratio but can be overridden.</td></tr>
+    <tr><td>Current Stock</td><td>Opening stock quantity.</td></tr>
+    <tr><td>Minimum Stock</td><td>Reorder alert level. When stock falls to or below this, a low-stock alert appears on the Dashboard.</td></tr>
+    <tr><td>Reorder Quantity</td><td>Suggested quantity to order when reordering.</td></tr>
+    <tr><td>Supplier</td><td>Primary supplier for this material.</td></tr>
+  </table>
+
+  <h3 id="inventory-adjust">Manual Stock Adjustments</h3>
+  <p>Use manual adjustments to correct discrepancies found during a stocktake, or to record damaged/destroyed stock.</p>
+  <ol class="steps">
+    <li><p>Open the material record.</p></li>
+    <li><p>Click <strong>Adjust Stock</strong>.</p></li>
+    <li><p>Select the <strong>Movement Type</strong>:</p>
+      <ul class="bullet">
+        <li><strong>RETURN</strong> — goods returned to stock (immediate, no approval needed)</li>
+        <li><strong>MANUAL_ADJUSTMENT</strong> — stocktake correction (requires approval)</li>
+        <li><strong>DAMAGE</strong> — write-off of damaged or destroyed stock (requires approval)</li>
+      </ul>
+    </li>
+    <li><p>Enter the <strong>Quantity</strong> (positive to add, negative to remove) and a <strong>Note</strong> explaining the reason.</p></li>
+    <li><p>Click <strong>Submit</strong>.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div><strong>MANUAL_ADJUSTMENT and DAMAGE movements require approval.</strong> The stock level does not change until an Admin or Accounts manager approves the request in the Approvals module. You will see a PENDING badge on the movement until then.</div></div>
+  <h3>Stock Movement History</h3>
+  <p>Every change to a material's stock is recorded with a timestamp, movement type, quantity, and the user who made the change. Open any material record and scroll to the <strong>Movements</strong> section to see the full audit trail.</p>
+  <h3>Low Stock Alerts</h3>
+  <p>When a material's current stock falls to or below its <strong>Minimum Stock</strong> level, it appears in the low-stock alert card on the Dashboard and is highlighted in the Inventory list. Raise a purchase order promptly to avoid production delays.</p>
+</section>
+
+<section id="bom">
+  <h2 class="section-title"><span class="chapter-num">Chapter 10 · Accounts Guide</span>BOM Templates</h2>
+  <div class="section-intro">BOM (Bill of Materials) Templates define the material recipes for each curtain type. When a quote line item is created, the system uses the BOM template to calculate exactly how much of each material is needed and what it costs.</div>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>BOM templates are typically set up once by the Admin and rarely need changing. Modifying a template does not affect existing quotes or orders — only new quotes use the updated template.</div></div>
+
+  <h3>Curtain Types vs BOM Templates</h3>
+  <p>A <strong>Curtain Type</strong> is the style name (e.g. Eyelet, Pinch Pleat, Roman Blind). A <strong>BOM Template</strong> is the specific recipe attached to a curtain type — one curtain type can have multiple templates (e.g. a standard and a premium version).</p>
+
+  <h3 id="bom-create">Creating a BOM Template</h3>
+  <ol class="steps">
+    <li><p>Navigate to <strong>BOM Templates</strong> and click <strong>New Template</strong>.</p></li>
+    <li><p>Select the <strong>Curtain Type</strong> and give the template a descriptive <strong>Name</strong>.</p></li>
+    <li><p>Set the <strong>Default Fullness Ratio</strong> (e.g. 2.0 for eyelet, 2.5 for pinch pleat).</p></li>
+    <li><p>Enter <strong>Labour Hours</strong> — the standard time in hours to make one unit of this style. Used to calculate labour cost.</p></li>
+    <li><p>Optionally set a <strong>Labour Hours Formula</strong> if the time varies by window size (advanced — leave blank to use the fixed hours).</p></li>
+    <li><p>Add <strong>Line Items</strong> — one for each material in the recipe.</p></li>
+    <li><p>Click <strong>Save Template</strong>.</p></li>
+  </ol>
+  <div class="screenshot"><div class="label">📸 Screenshot: BOM Template Editor</div><div class="desc">Capture the BOM template form showing the header fields (curtain type, name, fullness, labour hours) and the line items table with material, formula, role, and sort order columns.</div></div>
+
+  <h4>BOM Line Item Fields</h4>
+  <table class="field-table">
+    <tr><th>Field</th><th>Description</th></tr>
+    <tr><td>Material</td><td>The default material for this line. Can be overridden per quote.</td></tr>
+    <tr><td>Quantity Formula</td><td>A JavaScript expression that calculates the required quantity. Available variables: <code>width_m</code>, <code>drop_m</code>, <code>fullness_ratio</code>, <code>fabric_width_m</code>.</td></tr>
+    <tr><td>Role</td><td>FIXED, FABRIC, or LINING. See below.</td></tr>
+    <tr><td>Sort Order</td><td>Display order on job cards and quote breakdowns.</td></tr>
+  </table>
+
+  <h3 id="bom-roles">Fabric and Lining Roles</h3>
+  <p>The <strong>Role</strong> field on a BOM line item controls whether that line's material can be substituted when creating a quote:</p>
+  <table>
+    <tr><th>Role</th><th>Behaviour</th></tr>
+    <tr><td><span class="badge badge-gray">FIXED</span></td><td>The material is always this specific item — it cannot be changed on a quote. Use for heading tape, eyelets, hooks, weights.</td></tr>
+    <tr><td><span class="badge badge-violet">FABRIC</span></td><td>This line's material is the main fabric. When a quote specifies a different fabric, this line's cost recalculates using the selected fabric's price and the same quantity formula.</td></tr>
+    <tr><td><span class="badge badge-blue">LINING</span></td><td>This line's material is the lining fabric. Substituted with the lining selected on the quote.</td></tr>
+  </table>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Every template should have exactly <strong>one FABRIC line</strong> and (if applicable) <strong>one LINING line</strong>. Without these roles set correctly, fabric substitution on quotes will not work and costs will not recalculate.</div></div>
+
+  <h3>Formula Examples</h3>
+  <table>
+    <tr><th>Formula</th><th>What it calculates</th></tr>
+    <tr><td><code>(width_m * fullness_ratio) / fabric_width_m</code></td><td>Metres of fabric needed for the panel width</td></tr>
+    <tr><td><code>width_m * fullness_ratio + 0.2</code></td><td>Metres of heading tape (width × fullness + 20cm for joins)</td></tr>
+    <tr><td><code>Math.ceil(width_m * 4) + 2</code></td><td>Number of eyelet rings (4 per metre + 2 end rings)</td></tr>
+    <tr><td><code>(width_m + 0.1) * (drop_m + 0.3)</code></td><td>Square metres of fabric for a roman blind with seam allowance</td></tr>
+    <tr><td><code>1</code></td><td>Fixed quantity of 1 regardless of dimensions (e.g. 1 pack of fixings)</td></tr>
+  </table>
+</section>
+
+<section id="purchasing">
+  <h2 class="section-title"><span class="chapter-num">Chapter 11 · Accounts Guide</span>Purchasing</h2>
+  <div class="section-intro">The Purchasing module manages the full procurement cycle — from supplier records through purchase orders, goods receipt, and landed cost allocation.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Purchasing Page – Purchase Orders Tab</div><div class="desc">Capture the Purchasing page with the Purchase Orders tab active, showing the list of POs with supplier, status, and total columns.</div></div>
+
+  <h3 id="purchasing-suppliers">Suppliers</h3>
+  <p>Supplier records store contact details and preferred currency. Open the <strong>Suppliers</strong> tab on the Purchasing page to view and manage them.</p>
+  <h4>Adding a Supplier</h4>
+  <ol class="steps">
+    <li><p>Click <strong>New Supplier</strong>.</p></li>
+    <li><p>Enter the <strong>Company Name</strong> (required), Contact Person, Phone, Email, Address, and Preferred Currency.</p></li>
+    <li><p>Click <strong>Save</strong>.</p></li>
+  </ol>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Adding the supplier's <strong>email address</strong> enables the system to send purchase orders directly from the Purchasing page. Without an email, you must download the PDF and send it manually.</div></div>
+
+  <h3 id="purchasing-po">Purchase Orders</h3>
+  <p>A Purchase Order (PO) is a formal document sent to a supplier requesting specific materials at agreed prices.</p>
+  <h4>Creating a Purchase Order</h4>
+  <ol class="steps">
+    <li><p>On the <strong>Purchase Orders</strong> tab, click <strong>New PO</strong>.</p></li>
+    <li><p>Select the <strong>Supplier</strong>.</p></li>
+    <li><p>Set an <strong>Expected Date</strong> (when you expect delivery).</p></li>
+    <li><p>Add <strong>line items</strong>: for each material, select the material, enter the <strong>Qty Ordered</strong> and <strong>Unit Cost (USD)</strong>.</p></li>
+    <li><p>Optionally enter <strong>landed cost estimates</strong>: Freight (USD), Port Clearing (GHS), Other (GHS). These are estimates at this stage and can be adjusted when the goods arrive.</p></li>
+    <li><p>Click <strong>Create PO</strong>. The PO is saved as DRAFT.</p></li>
+  </ol>
+
+  <h4>Submitting a PO for Approval</h4>
+  <div class="workflow-box">
+    <h5>PO Approval Workflow</h5>
+    <div class="flow-step"><div class="dot"></div><span>Create PO → saved as <span class="badge badge-gray">DRAFT</span></span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span>Click <strong>Submit for Approval</strong> → PO flagged <span class="badge badge-amber">Awaiting Approval</span></span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span>Admin/Accounts approves → PO flagged <span class="badge badge-green">Approved</span></span></div>
+    <div class="flow-arrow">↓</div>
+    <div class="flow-step"><div class="dot"></div><span>Click <strong>Send to Supplier</strong> → PO emailed; status becomes <span class="badge badge-blue">SENT</span></span></div>
+  </div>
+  <ol class="steps">
+    <li><p>Open the PO by clicking its number.</p></li>
+    <li><p>Click <strong>Submit for Approval</strong>. The button disappears and an "Awaiting Approval" badge appears.</p></li>
+    <li><p>Once approved, the <strong>Send to Supplier</strong> button appears. Click it to email the PO PDF directly to the supplier.</p></li>
+    <li><p>If the supplier has no email on file, download the PDF and send it manually, then click <strong>Mark as Sent</strong>.</p></li>
+  </ol>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>A PO cannot be sent to a supplier until it has been approved. This ensures all orders are reviewed before commitments are made.</div></div>
+  <div class="screenshot"><div class="label">📸 Screenshot: PO Detail View – DRAFT with Submit for Approval</div><div class="desc">Capture the PO detail view for a DRAFT PO, showing the Submit for Approval button.</div></div>
+  <div class="screenshot"><div class="label">📸 Screenshot: PO Detail View – APPROVED with Send to Supplier</div><div class="desc">Capture the PO detail view for an approved PO, showing the Send to Supplier button and the green Approved badge.</div></div>
+
+  <h3 id="purchasing-grn">Goods Receipt Notes (GRNs)</h3>
+  <p>When goods arrive, a Goods Receipt Note (GRN) records exactly what was received and updates stock levels accordingly.</p>
+  <ol class="steps">
+    <li><p>Open the PO that was delivered.</p></li>
+    <li><p>Click <strong>Record Goods Receipt</strong>.</p></li>
+    <li><p>For each line item, enter the <strong>Qty Received</strong> (this may be less than ordered for partial deliveries) and confirm or adjust the <strong>Unit Cost (USD)</strong>.</p></li>
+    <li><p>Enter the actual <strong>landed costs</strong> from the supplier invoices: Freight, Port Clearing, and Other charges.</p></li>
+    <li><p>Click <strong>Confirm Receipt</strong>. Stock levels are updated immediately using <strong>Weighted Average Cost (WAC)</strong>.</p></li>
+  </ol>
+  <div class="callout tip"><span class="callout-icon">💡</span><div><strong>Partial Receipts:</strong> If only part of the order arrives, enter only the quantity actually received. The PO status will change to <span class="badge badge-amber">PARTIALLY_RECEIVED</span> and remain open for the remainder. You can record another GRN when the rest arrives.</div></div>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div><strong>Weighted Average Cost (WAC):</strong> Each time goods are received, the material's unit cost is recalculated as a weighted average of existing stock cost and new receipt cost. This ensures the cost of materials issued to production reflects the true average purchase price.</div></div>
+
+  <h3 id="purchasing-lce">Landed Cost Entries</h3>
+  <p>Sometimes freight and clearing invoices arrive days after the goods. The Landed Costs tab allows you to allocate these costs across multiple GRNs after the fact, updating material costs without re-entering a GRN.</p>
+  <h4>Creating a Landed Cost Entry</h4>
+  <ol class="steps">
+    <li><p>Open the <strong>Landed Costs</strong> tab and click <strong>New Landed Cost Entry</strong>.</p></li>
+    <li><p>Enter the cost amounts from your freight and clearing invoices.</p></li>
+    <li><p>Select the <strong>GRNs</strong> that were part of this shipment. The system shows the available GRNs that have not yet been assigned a posted landed cost entry.</p></li>
+    <li><p>Review the <strong>allocation preview</strong> — costs are distributed proportionally based on each GRN's value in USD.</p></li>
+    <li><p>Click <strong>Save as Draft</strong>. Review the allocation, then click <strong>Post</strong> to finalise.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div>Once a Landed Cost Entry is <strong>Posted</strong>, it cannot be edited. The material unit costs are updated permanently. Double-check all amounts before posting.</div></div>
+</section>
+
+<section id="reports">
+  <h2 class="section-title"><span class="chapter-num">Chapter 12 · Accounts Guide</span>Reports</h2>
+  <div class="section-intro">The Reports module provides financial summaries for management decision-making, tax compliance, and cost analysis.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Reports Page</div><div class="desc">Capture the Reports page showing the three report tabs: Sales, Overhead, and VAT.</div></div>
+
+  <h3>Sales Report</h3>
+  <p>Shows revenue for a selected date range, broken down by customer and order. Includes:</p>
+  <ul class="bullet">
+    <li>Total revenue (from paid and partially paid invoices)</li>
+    <li>Discounts given</li>
+    <li>Revenue by customer</li>
+    <li>Outstanding balances</li>
+  </ul>
+  <p>Set the <strong>From</strong> and <strong>To</strong> dates using the date pickers at the top of the report, then click <strong>Generate</strong>.</p>
+
+  <h3>Overhead Summary Report</h3>
+  <p>Shows the total operating costs for a selected period and calculates the suggested overhead rate per labour hour:</p>
+  <ul class="bullet">
+    <li>Factory overhead total (direct factory + 65% of shared)</li>
+    <li>Admin overhead total (direct admin + 35% of shared)</li>
+    <li>Suggested overhead rate (GHS per labour hour) based on your configured capacity hours</li>
+  </ul>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Use the Overhead Summary report monthly to review whether your <strong>Overhead Rate</strong> setting in Settings still accurately reflects actual costs. If costs have risen significantly, update the rate so future quotes absorb the correct overhead.</div></div>
+
+  <h3>VAT Report</h3>
+  <p>Summarises VAT collected on invoices for a selected period. Used to prepare VAT returns. Shows:</p>
+  <ul class="bullet">
+    <li>Total net sales (ex-VAT)</li>
+    <li>Total VAT collected</li>
+    <li>Total gross invoiced (inc-VAT)</li>
+    <li>Breakdown by invoice</li>
+  </ul>
+  <div class="callout info"><span class="callout-icon">ℹ️</span><div>VAT is only included on invoices where the <strong>VAT Rate</strong> setting is greater than 0. Set the VAT rate in <strong>Settings → General → VAT Rate</strong> (e.g. <code>0.15</code> for 15%).</div></div>
+</section>
+
+<!-- ═══════════════════ PART 3 – ADMINISTRATION ═══════════════════ -->
+
+<section id="settings">
+  <h2 class="section-title"><span class="chapter-num">Chapter 13 · Administration</span>Settings</h2>
+  <div class="section-intro">The Settings module is accessible only to Admin users. It controls all system-wide configuration — business identity, exchange rates, pricing parameters, and approval thresholds.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Settings Page – General Tab</div><div class="desc">Capture the Settings page with the General tab showing business info, currency/VAT, production costs, and approval thresholds cards.</div></div>
+
+  <h3 id="settings-business">Business Information</h3>
+  <p>Found in <strong>Settings → General → Business Information</strong>. These values appear on printed quotes, purchase orders, and invoices.</p>
+  <table class="field-table">
+    <tr><th>Setting</th><th>Description</th></tr>
+    <tr><td>Business Name</td><td>Your company name as it appears on all documents.</td></tr>
+    <tr><td>Phone</td><td>Company contact phone number.</td></tr>
+    <tr><td>Email</td><td>Company email address for correspondence.</td></tr>
+    <tr><td>Address</td><td>Physical address printed on invoices and POs.</td></tr>
+    <tr><td>Default Markup Ratio</td><td>The margin added on top of total cost to suggest a selling price. E.g. <code>0.35</code> = 35% markup.</td></tr>
+    <tr><td>VAT Rate</td><td>VAT percentage applied to invoices. E.g. <code>0.15</code> for 15% VAT, <code>0</code> if not VAT-registered.</td></tr>
+  </table>
+
+  <h3 id="settings-rate">Exchange Rate Management</h3>
+  <p>Found in <strong>Settings → Currency</strong>. The exchange rate (GHS per 1 USD) is used to convert material costs and produce GHS-equivalent prices on quotes and invoices.</p>
+  <ol class="steps">
+    <li><p>The current rate and the date it was last set are shown at the top of the Currency tab.</p></li>
+    <li><p>To update, enter the new rate in the <strong>New Rate</strong> field (e.g. <code>16.2500</code>).</p></li>
+    <li><p>Click <strong>Update Rate</strong>. The new rate is saved and all material GHS costs recalculate.</p></li>
+  </ol>
+  <div class="callout warning"><span class="callout-icon">⚠️</span><div>Updating the exchange rate recalculates the GHS cost of all materials immediately. <strong>Existing quotes and invoices are not affected</strong> — they store a snapshot of the rate at the time they were created. Only new quotes will use the updated rate.</div></div>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Admin users can also update the exchange rate from the sidebar shortcut (the pencil icon next to the rate widget at the bottom of the sidebar) without navigating to Settings.</div></div>
+
+  <h3 id="settings-production">Production Cost Rates</h3>
+  <p>Found in <strong>Settings → General → Production Costs</strong>. These rates drive the labour and overhead component of BOM-based quote pricing.</p>
+  <table class="field-table">
+    <tr><th>Setting</th><th>Description</th></tr>
+    <tr><td>Labour Rate (GHS/hour)</td><td>How much one hour of tailoring labour costs. Multiplied by the BOM template's Labour Hours to get labour cost per curtain.</td></tr>
+    <tr><td>Overhead Rate (GHS/hour)</td><td>Factory overhead apportioned per labour hour. Calculate as: total monthly factory overhead ÷ total productive hours per month. E.g. GHS 2,000 overhead ÷ 200 hours = GHS 10/hour.</td></tr>
+  </table>
+  <p><strong>Example:</strong> A roman blind BOM says 2.5 labour hours. With Labour Rate = GHS 15/hr and Overhead Rate = GHS 10/hr, the labour+overhead cost per blind = (2.5 × 15) + (2.5 × 10) = GHS 37.50 + GHS 25 = <strong>GHS 62.50</strong>.</p>
+
+  <h3 id="settings-approvals">Approval Thresholds</h3>
+  <p>Found in <strong>Settings → General → Approval Thresholds</strong>. These three values control when the approval gate is triggered for expenses, discounts, and high-value orders.</p>
+  <table class="field-table">
+    <tr><th>Setting</th><th>Default</th><th>Description</th></tr>
+    <tr><td>Expense Approval Threshold (GHS)</td><td>500</td><td>Expenses above this amount require approval before being included in reports.</td></tr>
+    <tr><td>Quote Discount Threshold (%)</td><td>10</td><td>Quote discounts above this percentage require approval before the quote can be converted to an order.</td></tr>
+    <tr><td>Order Total Threshold (GHS)</td><td>5,000</td><td>Orders converted from quotes with a total above this amount require approval before confirmation.</td></tr>
+  </table>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Set these thresholds based on your business's tolerance for risk. For tighter control, lower the thresholds. For a small team with high trust, raise them to reduce approval friction.</div></div>
+
+  <p>After making any changes in the General tab, click <strong>Save Settings</strong> at the bottom of the page.</p>
+</section>
+
+<section id="users">
+  <h2 class="section-title"><span class="chapter-num">Chapter 14 · Administration</span>User Management</h2>
+  <div class="section-intro">Admin users can create, view, and deactivate user accounts. Every staff member should have their own individual account — shared accounts are not permitted.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Settings – Users Tab</div><div class="desc">Capture the Users tab in Settings showing the table of users with name, email, role badge, and status (Active/Inactive).</div></div>
+
+  <h3>Creating a New User</h3>
+  <ol class="steps">
+    <li><p>Go to <strong>Settings → Users</strong> and click <strong>New User</strong>.</p></li>
+    <li><p>Enter the staff member's <strong>Full Name</strong>, <strong>Email Address</strong>, a <strong>Temporary Password</strong>, and their <strong>Role</strong>.</p></li>
+    <li><p>Click <strong>Create User</strong>.</p></li>
+    <li><p>Give the staff member their email and temporary password. On their first login, they will be prompted to set a new password.</p></li>
+  </ol>
+  <div class="callout tip"><span class="callout-icon">💡</span><div>Choose passwords that are at least 8 characters. A good pattern for temporary passwords is a word + number + symbol, e.g. <code>Curtains2026!</code>.</div></div>
+
+  <h3>Assigning Roles</h3>
+  <p>Choose the role carefully — it determines everything the user can see and do. See the Roles table in the Introduction section and the full Permissions Matrix in Appendix A.</p>
+
+  <h3>Deactivating a User</h3>
+  <p>When a staff member leaves, deactivate their account to prevent access. You cannot delete users (to preserve audit history), but a deactivated account cannot log in.</p>
+  <ol class="steps">
+    <li><p>In the Users table, find the user and click the <strong>shield-off icon</strong> on the right.</p></li>
+    <li><p>Confirm the deactivation. The user's status changes to <span class="badge badge-red">Inactive</span>.</p></li>
+  </ol>
+  <div class="callout danger"><span class="callout-icon">🚫</span><div>You cannot deactivate your own account. If the admin account owner is leaving, have another admin deactivate it.</div></div>
+</section>
+
+<section id="categories">
+  <h2 class="section-title"><span class="chapter-num">Chapter 15 · Administration</span>Material Categories</h2>
+  <div class="section-intro">Material categories organise the material catalogue into logical groups for easier searching and filtering. They appear as filter options on the Inventory page.</div>
+  <div class="screenshot"><div class="label">📸 Screenshot: Settings – Categories Tab</div><div class="desc">Capture the Categories tab in Settings showing the categories table with material count.</div></div>
+
+  <h3>Creating a Category</h3>
+  <ol class="steps">
+    <li><p>Go to <strong>Settings → Categories</strong> and click <strong>New Category</strong>.</p></li>
+    <li><p>Enter a <strong>Name</strong> (e.g. "Fabric", "Lining", "Track &amp; Rod") and an optional description.</p></li>
+    <li><p>Click <strong>Create Category</strong>.</p></li>
+  </ol>
+  <h3>Default Categories</h3>
+  <p>The system comes pre-configured with these categories:</p>
+  <ul class="bullet">
+    <li>Fabric</li>
+    <li>Lining</li>
+    <li>Track &amp; Rod</li>
+    <li>Heading Tape</li>
+    <li>Eyelets &amp; Rings</li>
+    <li>Weights &amp; Fixings</li>
+    <li>Accessories</li>
+  </ul>
+  <h3>Deleting a Category</h3>
+  <p>A category can only be deleted if it has <strong>no materials assigned to it</strong>. The delete button is disabled if materials exist in that category. To delete, first reassign or delete the materials.</p>
+</section>
+
+<!-- ═══════════════════ APPENDIX ═══════════════════ -->
+
+<section id="appendix-permissions">
+  <h2 class="section-title"><span class="chapter-num">Appendix A</span>Roles &amp; Permissions Matrix</h2>
+  <p>✅ = Full access &nbsp; 👁 = View only &nbsp; ➕ = Create only &nbsp; ❌ = No access</p>
+  <table>
+    <tr>
+      <th>Module / Action</th>
+      <th><span class="role-pill role-admin">ADMIN</span></th>
+      <th><span class="role-pill role-accounts">ACCOUNTS</span></th>
+      <th><span class="role-pill role-sales">SALES</span></th>
+      <th><span class="role-pill role-workshop">WORKSHOP</span></th>
+    </tr>
+    <tr><td><strong>Dashboard</strong></td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td><strong>Customers</strong> – view</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Customers</strong> – create/edit</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Quotes</strong> – view/create</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Quotes</strong> – convert to order</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Orders</strong> – view</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+    <tr><td><strong>Orders</strong> – manage</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Production</strong> – view job cards</td><td>✅</td><td>✅</td><td>❌</td><td>✅</td></tr>
+    <tr><td><strong>Production</strong> – issue materials / update status</td><td>✅</td><td>❌</td><td>❌</td><td>✅</td></tr>
+    <tr><td><strong>Invoices</strong> – view/create</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Invoices</strong> – record payments</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Inventory</strong> – view</td><td>✅</td><td>✅</td><td>❌</td><td>✅</td></tr>
+    <tr><td><strong>Inventory</strong> – add/edit materials</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Inventory</strong> – stock adjustments</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>BOM Templates</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Purchasing</strong> – suppliers/POs/GRNs</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Expenses</strong></td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Reports</strong></td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Approvals</strong> – view/action</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Settings</strong> – general/currency</td><td>✅</td><td>✅</td><td>✅</td><td>❌</td></tr>
+    <tr><td><strong>Settings</strong> – business/thresholds</td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>User Management</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+    <tr><td><strong>Material Categories</strong></td><td>✅</td><td>❌</td><td>❌</td><td>❌</td></tr>
+  </table>
+</section>
+
+<section id="appendix-approval-flows">
+  <h2 class="section-title"><span class="chapter-num">Appendix B</span>Approval Flows Reference</h2>
+  <p>This reference shows exactly what triggers each approval type and what happens at each outcome.</p>
+
+  <h3>1. Purchase Order Approval</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Every DRAFT PO — Accounts/Admin clicks "Submit for Approval"</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">PO approvalStatus → APPROVED. "Send to Supplier" button becomes available.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">PO approvalStatus → REJECTED. Requester must edit the PO and re-submit.</p>
+  </div>
+
+  <h3>2. Expense Approval</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Expense amount &gt; <strong>approval.expenseThresholdGhs</strong> (default GHS 500)</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">Expense approvalStatus → APPROVED. Included in overhead reports.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">Expense approvalStatus → REJECTED. Excluded from reports.</p>
+  </div>
+
+  <h3>3. Quote Discount Approval</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Quote discount rate &gt; <strong>approval.quoteDiscountThresholdPct</strong> (default 10%)</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">Quote approvalStatus → APPROVED. "Convert to Order" becomes available.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">Quote approvalStatus → REJECTED. Sales must reduce the discount and re-save the quote (which re-triggers the approval if still above threshold).</p>
+  </div>
+
+  <h3>4. High-Value Order Conversion</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Order total &gt; <strong>approval.orderTotalThresholdGhs</strong> (default GHS 5,000)</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">Order status → CONFIRMED. Job card activated for production.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">Order stays PENDING. No production begins.</p>
+  </div>
+
+  <h3>5. Invoice Cancellation</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Attempting to cancel an invoice with status SENT, PARTIAL, or PAID</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">Invoice status → CANCELLED.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">Invoice remains in its original status (SENT / PARTIAL / PAID).</p>
+  </div>
+
+  <h3>6. Manual Stock Adjustment</h3>
+  <div class="workflow-box">
+    <h5>Trigger</h5><p style="font-size:13px;margin:0 0 8px">Stock movement type is MANUAL_ADJUSTMENT or DAMAGE</p>
+    <h5>On Approve</h5><p style="font-size:13px;margin:0 0 8px">material.currentStock is updated atomically by the adjustment quantity.</p>
+    <h5>On Reject</h5><p style="font-size:13px;margin:0">Stock movement marked REJECTED. currentStock unchanged.</p>
+  </div>
+</section>
+
+<section id="appendix-glossary">
+  <h2 class="section-title"><span class="chapter-num">Appendix C</span>Glossary of Terms</h2>
+  <table>
+    <tr><th>Term</th><th>Definition</th></tr>
+    <tr><td><strong>BOM</strong></td><td>Bill of Materials — the recipe specifying every material, quantity formula, and cost for a curtain style.</td></tr>
+    <tr><td><strong>Drop</strong></td><td>The finished length of a curtain from the top of the track to the hem, in centimetres.</td></tr>
+    <tr><td><strong>Exchange Rate</strong></td><td>The number of Ghana Cedis (GHS) per 1 US Dollar (USD). Updated manually by an Admin when the rate changes.</td></tr>
+    <tr><td><strong>Fullness Ratio</strong></td><td>The ratio of fabric width to track width. 2.0 = double fullness (the fabric is twice as wide as the finished curtain, creating gathers).</td></tr>
+    <tr><td><strong>GRN</strong></td><td>Goods Receipt Note — a document recording what materials were physically received from a supplier, when, and at what cost.</td></tr>
+    <tr><td><strong>Job Card</strong></td><td>A production work order for the workshop, listing the materials to be cut and sewn for a specific order.</td></tr>
+    <tr><td><strong>Landed Cost</strong></td><td>The total cost of goods including purchase price, freight, import duties, and port clearing fees. The "true" cost by the time goods reach your warehouse.</td></tr>
+    <tr><td><strong>Lining</strong></td><td>A secondary fabric stitched behind the main fabric for opacity, insulation, or structure.</td></tr>
+    <tr><td><strong>Markup Ratio</strong></td><td>The percentage added above total cost to arrive at a selling price. E.g. a 0.35 markup on a GHS 100 cost gives a GHS 135 selling price.</td></tr>
+    <tr><td><strong>Overhead</strong></td><td>Indirect business costs (electricity, rent, maintenance) that cannot be assigned to a single job but must be recovered across all jobs.</td></tr>
+    <tr><td><strong>Overhead Rate</strong></td><td>GHS per labour hour charged to each job to recover factory overhead. Calculated as total factory overhead ÷ total productive hours.</td></tr>
+    <tr><td><strong>PO</strong></td><td>Purchase Order — a formal document sent to a supplier to request goods at agreed prices.</td></tr>
+    <tr><td><strong>WAC</strong></td><td>Weighted Average Cost — the method used to recalculate material unit costs each time new stock is received, blending existing and new stock costs proportionally.</td></tr>
+    <tr><td><strong>VAT</strong></td><td>Value Added Tax — a consumption tax applied to sales. The rate is configurable in Settings.</td></tr>
+  </table>
+</section>
+
+<section id="appendix-quickref">
+  <h2 class="section-title"><span class="chapter-num">Appendix D</span>Quick Reference — Common Workflows</h2>
+  <h3>New Customer Job (Full Cycle)</h3>
+  <ol class="num">
+    <li>Customers → New Customer → enter details and window measurements</li>
+    <li>Quotes → New Quote → select customer, add line items per window, set fabric, apply discount if needed → Create Quote</li>
+    <li>Email or print the quote → customer confirms → Mark as Accepted</li>
+    <li>Convert to Order → enter deposit → Confirm</li>
+    <li>Production → job card appears → workshop issues materials and updates status</li>
+    <li>Order delivered → Invoices → New Invoice → select order → Create → Record full payment</li>
+  </ol>
+
+  <h3>Restocking Materials</h3>
+  <ol class="num">
+    <li>Dashboard alerts or Inventory page shows low stock</li>
+    <li>Purchasing → New PO → select supplier, add materials, set quantities and costs → Create PO</li>
+    <li>Open PO → Submit for Approval → wait for approval</li>
+    <li>Once approved → Send to Supplier (or download PDF)</li>
+    <li>When goods arrive → open PO → Record Goods Receipt → enter received quantities</li>
+    <li>If freight/clearing invoice arrives later → Landed Costs → New Entry → allocate to GRN → Post</li>
+  </ol>
+
+  <h3>End-of-Month Overhead Review</h3>
+  <ol class="num">
+    <li>Expenses → log all expenses for the month with correct Type (Admin/Factory/Shared)</li>
+    <li>Reports → Overhead → set date range to the month → Generate</li>
+    <li>Review the Suggested Overhead Rate</li>
+    <li>If it differs significantly from the current Settings rate → Settings → General → update Overhead Rate → Save</li>
+  </ol>
+
+  <h3>Stocktake Correction</h3>
+  <ol class="num">
+    <li>Count physical stock</li>
+    <li>Inventory → open the material → Adjust Stock</li>
+    <li>Select MANUAL_ADJUSTMENT → enter the correct quantity difference → add a note explaining the count</li>
+    <li>Submit → approval request sent to Approvals inbox</li>
+    <li>Admin/Accounts approves → stock level updates</li>
+  </ol>
+
+  <div style="margin-top:48px;padding:24px;background:#f3f4f6;border-radius:12px;text-align:center;color:#6b7280;font-size:13px">
+    <p><strong>Curtains ERP User Manual</strong> · Version 1.0 · April 2026</p>
+    <p style="margin-top:4px">For technical support, contact your system administrator.</p>
+  </div>
+</section>
+
+</main>
+</body>
+</html>
