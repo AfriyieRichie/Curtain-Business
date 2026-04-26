@@ -163,7 +163,7 @@ export async function generateJobCards(req: Request, res: Response) {
             materials: {
               create: bom.lines.map((line) => ({
                 materialId: line.materialId,
-                requiredQty: new Decimal(line.quantity.toString()),
+                requiredQty: new Decimal(line.quantity.toString()).mul(item.quantity),
               })),
             },
           }),

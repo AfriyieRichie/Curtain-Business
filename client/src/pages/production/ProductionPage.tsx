@@ -29,23 +29,29 @@ interface JobCard {
 export default function ProductionPage() {
   const qc = useQueryClient();
 
-  // Fetch all in-production orders to extract job cards
-  const { data, isLoading } = useQuery({
-    queryKey: ["production-orders"],
+  const { data: confirmedData, isLoading: loadingConfirmed } = useQuery({
+    queryKey: ["production-orders", "CONFIRMED"],
+    queryFn: () => ordersApi.list({ status: "CONFIRMED", page: 1, limit: 50 }),
+    refetchInterval: 30_000,
+  });
+
+  const { data: inProdData, isLoading: loadingInProd } = useQuery({
+    queryKey: ["production-orders", "IN_PRODUCTION"],
     queryFn: () => ordersApi.list({ status: "IN_PRODUCTION", page: 1, limit: 50 }),
     refetchInterval: 30_000,
   });
 
-  const orders = data?.data ?? [];
+  const isLoading = loadingConfirmed || loadingInProd;
+  const orders = [...(confirmedData?.data ?? []), ...(inProdData?.data ?? [])];
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Production" subtitle="Job cards currently in production" />
+      <PageHeader title="Production" subtitle="Pending and active job cards" />
 
       {isLoading ? (
         <FullPageSpinner />
       ) : orders.length === 0 ? (
-        <EmptyState icon={Wrench} title="No active production jobs" description="Job cards appear here when orders move to In Production" />
+        <EmptyState icon={Wrench} title="No active production jobs" description="Job cards appear here once they are generated for a confirmed order" />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {orders.map((order) => (
@@ -79,6 +85,9 @@ function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: st
     },
   });
 
+  // Don't render this card at all if there are no job cards yet
+  if (!full || jobCards.length === 0) return null;
+
   return (
     <div className="card space-y-3">
       <div>
@@ -86,9 +95,7 @@ function OrderJobCards({ orderId, orderNumber, customerName, qc }: { orderId: st
         <p className="text-xs text-gray-500">{customerName}</p>
       </div>
 
-      {jobCards.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">No job cards yet</p>
-      ) : (
+      {(
         jobCards.map((jc) => (
           <div key={jc.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3 space-y-2">
             <div className="flex items-center justify-between">

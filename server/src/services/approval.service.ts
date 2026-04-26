@@ -141,7 +141,7 @@ export async function processApproval(
                   materials: {
                     create: bom.lines.map((line) => ({
                       materialId: line.materialId,
-                      requiredQty: new Decimal(line.quantity.toString()),
+                      requiredQty: new Decimal(line.quantity.toString()).mul(Number(item.quantity)),
                     })),
                   },
                 }),
