@@ -83,6 +83,15 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+// ── SPA static serving (production) ──────────────────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  const clientDist = path.resolve(__dirname, "../../client/dist");
+  app.use(express.static(clientDist));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+}
+
 // ── Error handlers ────────────────────────────────────────────────────────────
 app.use(notFound);
 app.use(errorHandler);
