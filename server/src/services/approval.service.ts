@@ -149,10 +149,7 @@ export async function processApproval(
             });
           }
 
-          await tx.order.update({
-            where: { id: order.id },
-            data: { status: "IN_PRODUCTION" },
-          });
+          // Stay CONFIRMED — order moves to IN_PRODUCTION when workshop starts a job card
         });
       }
     } else {

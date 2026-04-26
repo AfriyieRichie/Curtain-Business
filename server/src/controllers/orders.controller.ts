@@ -73,7 +73,7 @@ export async function updateOrder(req: Request, res: Response) {
   };
 
   // Block any attempt to manually confirm an order that is awaiting approval
-  if (status === "CONFIRMED" || status === "IN_PRODUCTION") {
+  if (status === "CONFIRMED") {
     const current = await prisma.order.findUniqueOrThrow({
       where: { id: req.params.id },
       select: { approvalStatus: true },
@@ -176,7 +176,8 @@ export async function generateJobCards(req: Request, res: Response) {
       created.push(jc);
     }
 
-    await tx.order.update({ where: { id: order.id }, data: { status: "IN_PRODUCTION" } });
+    // Stay CONFIRMED — order moves to IN_PRODUCTION when workshop starts a job card
+    await tx.order.update({ where: { id: order.id }, data: { status: "CONFIRMED" } });
 
     return created;
   });
@@ -204,7 +205,12 @@ export async function updateJobCard(req: Request, res: Response) {
     },
   });
 
-  // If all job cards for the order are complete, mark order COMPLETED
+  // When the first job card is started, move the order into production
+  if (status === "IN_PROGRESS") {
+    await prisma.order.update({ where: { id: jc.orderId }, data: { status: "IN_PRODUCTION" } });
+  }
+
+  // When all job cards are complete, mark the order completed
   const allCards = await prisma.jobCard.findMany({ where: { orderId: jc.orderId } });
   const allDone = allCards.every((c) => c.status === "COMPLETED");
   if (allDone) {

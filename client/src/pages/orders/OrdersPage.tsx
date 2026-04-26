@@ -50,6 +50,33 @@ function DepositForm({ orderId, totalGhs, currentDeposit, onDone }: { orderId: s
   );
 }
 
+function JobCardActions({ orderId, jobCard }: { orderId: string; jobCard: { id: string; status: string } }) {
+  const qc = useQueryClient();
+  const { mutate, isPending } = useMutation({
+    mutationFn: (status: string) => ordersApi.updateJobCard(orderId, jobCard.id, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["order", orderId] }),
+    onError: (e: unknown) => {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message ?? "Update failed";
+      toast.error(msg);
+    },
+  });
+  if (jobCard.status === "PENDING") {
+    return (
+      <button onClick={() => mutate("IN_PROGRESS")} disabled={isPending} className="text-xs text-blue-600 hover:underline disabled:opacity-50">
+        {isPending ? "…" : "Start"}
+      </button>
+    );
+  }
+  if (jobCard.status === "IN_PROGRESS") {
+    return (
+      <button onClick={() => mutate("COMPLETED")} disabled={isPending} className="text-xs text-green-600 hover:underline disabled:opacity-50">
+        {isPending ? "…" : "Complete"}
+      </button>
+    );
+  }
+  return null;
+}
+
 function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) {
   const qc = useQueryClient();
   const role = useAuthStore((s) => s.user?.role);
@@ -185,6 +212,7 @@ function OrderDetail({ order, onClose }: { order: Order; onClose: () => void }) 
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-mono font-semibold text-violet-700">{jc.jobNumber || jc.id.slice(-8).toUpperCase()}</span>
                   <div className="flex items-center gap-2">
+                    <JobCardActions orderId={order.id} jobCard={jc} />
                     <button onClick={() => setCostsJobCardId(costsJobCardId === jc.id ? null : jc.id)} className="text-xs text-violet-600 hover:underline">
                       {costsJobCardId === jc.id ? "Hide Costs" : "Costs"}
                     </button>

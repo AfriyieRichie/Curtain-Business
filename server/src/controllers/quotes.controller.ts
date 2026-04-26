@@ -310,7 +310,9 @@ export async function convertToOrder(req: Request, res: Response) {
     where: { key: "approval.orderTotalThresholdGhs" },
   });
   const orderThreshold = new Decimal(orderTotalThresholdSetting?.value ?? "5000");
-  const needsOrderApproval = new Decimal(quote.totalGhs.toString()).gt(orderThreshold);
+  // Skip order-level approval if the quote was already approved by management
+  const quoteWasApproved = quoteWithApproval.approvalStatus === "APPROVED";
+  const needsOrderApproval = !quoteWasApproved && new Decimal(quote.totalGhs.toString()).gt(orderThreshold);
 
   const orderNumber = await nextDocNumber("ORD");
   const rate = new Decimal(quote.exchangeRateSnapshot.toString());
